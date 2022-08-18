@@ -1,2 +1,2 @@
 # KARA
-KERI Audit Reporting API
+KERI Audit Reporting Agent
