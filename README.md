@@ -1,2 +1,2 @@
-# KARA
-KERI Audit Reporting Agent
+# SALLY
+vLEI Audit Reporting Agent

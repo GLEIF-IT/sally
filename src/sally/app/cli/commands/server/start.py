@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-kara.cli.commands module
+sally.cli.commands module
 
 """
 import argparse
@@ -9,9 +9,9 @@ from keri.app import keeping, habbing, directing, configing
 from keri.app.cli.common import existing
 from keri.end import ending
 
-from kara.core import serving
+from sally.core import serving
 
-parser = argparse.ArgumentParser(description='Launch KARA micro-service')
+parser = argparse.ArgumentParser(description='Launch SALLY micro-service')
 parser.set_defaults(handler=lambda args: launch(args),
                     transferable=True)
 parser.add_argument('-p', '--http',
@@ -20,8 +20,8 @@ parser.add_argument('-p', '--http',
                     help="Port on which to listen for OOBI requests.  Defaults to 9723")
 parser.add_argument('-n', '--name',
                     action='store',
-                    default="kara",
-                    help="Name of controller. Default is kara.")
+                    default="sally",
+                    help="Name of controller. Default is sally.")
 parser.add_argument('-w', '--web-hook', help='Webhook address for outbound notifications of credential issuance or '
                                              'revocation',
                     action='store',
@@ -39,7 +39,7 @@ parser.add_argument('--config-file',
                     action='store',
                     default=None,
                     help="configuration filename override")
-parser.add_argument('--listen', '-l', help='run KARA in direct HTTP mode listening for events', action="store_true")
+parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store_true")
 
 
 def launch(args, expire=0.0):
@@ -84,5 +84,5 @@ def launch(args, expire=0.0):
 
     doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth, listen=listen)
 
-    print(f"Kara Server listening on {httpPort}")
+    print(f"Sally Server listening on {httpPort}")
     directing.runController(doers=doers, expire=expire)

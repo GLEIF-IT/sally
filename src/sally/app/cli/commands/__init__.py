@@ -2,6 +2,6 @@
 
 """
 KERI
-kara.app.cli.commands package
+sally.app.cli.commands package
 
 """

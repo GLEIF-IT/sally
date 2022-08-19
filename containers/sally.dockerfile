@@ -14,5 +14,5 @@ WORKDIR /usr/local/var/keripy
 WORKDIR /usr/local/var/
 RUN git clone -b dev https://github.com/GLEIF-IT/sally
 
-WORKDIR /usr/local/var/kara
+WORKDIR /usr/local/var/sally
 RUN pip install -r requirements.txt

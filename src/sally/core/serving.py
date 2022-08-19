@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 """
-KARA
-kara.core.serving module
+SALLY
+sally.core.serving module
 
 Endpoint service
 """
@@ -16,7 +16,7 @@ from keri.peer import exchanging
 from keri.vdr import viring, verifying
 from keri.vdr.eventing import Tevery
 
-from kara.core import handling, basing
+from sally.core import handling, basing
 
 logger = help.ogler.getLogger()
 

@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-kara.cli.commands module
+sally.cli.commands module
 
 """
 import argparse
@@ -12,9 +12,9 @@ from keri.app import keeping, habbing, directing, configing
 from keri.app.cli.common import existing
 from keri.end import ending
 
-from kara.core import serving
+from sally.core import serving
 
-parser = argparse.ArgumentParser(description='Launch KARA sample web hook server')
+parser = argparse.ArgumentParser(description='Launch SALLY sample web hook server')
 parser.set_defaults(handler=lambda args: launch(args),
                     transferable=True)
 parser.add_argument('-p', '--http',
@@ -36,7 +36,7 @@ def launch(args, expire=0.0):
     server = http.Server(port=httpPort, app=app)
     httpServerDoer = http.ServerDoer(server=server)
 
-    print(f"Kara Web Hook Sample listening on {httpPort}")
+    print(f"Sally Web Hook Sample listening on {httpPort}")
     directing.runController(doers=[httpServerDoer], expire=expire)
 
 

@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 """
-KARA
-kara.core.handling module
+SALLY
+sally.core.handling module
 
 EXN Message handling
 """
