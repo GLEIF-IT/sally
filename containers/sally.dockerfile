@@ -12,7 +12,7 @@ RUN pip install -e .
 WORKDIR /usr/local/var/keripy
 
 WORKDIR /usr/local/var/
-RUN git clone -b dev https://github.com/WebOfTrust/kara
+RUN git clone -b dev https://github.com/GLEIF-IT/sally
 
 WORKDIR /usr/local/var/kara
 RUN pip install -r requirements.txt

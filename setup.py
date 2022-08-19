@@ -31,14 +31,14 @@ from os.path import splitext
 from setuptools import find_packages, setup
 
 setup(
-    name='kara',
-    version='0.0.1',  # also change in src/kara/__init__.py
+    name='sally',
+    version='0.0.1',  # also change in src/sally/__init__.py
     license='Apache Software License 2.0',
-    description='KERI Audit Reporting API',
-    long_description="KERI auditing server that responds to credential presentations by signaling via webhooks.",
+    description='vLEI Audit Reporting API',
+    long_description="vLEI auditing server that responds to credential presentations by signaling via webhooks.",
     author='Philip S. Feairheller',
     author_email='pfeairheller@gmail.com',
-    url='https://github.com/WebOfTrust/kara',
+    url='https://github.com/GLEIF-IT/sally',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
@@ -62,9 +62,9 @@ setup(
         'Topic :: Utilities',
     ],
     project_urls={
-        'Documentation': 'https://kara.readthedocs.io/',
-        'Changelog': 'https://kara.readthedocs.io/en/latest/changelog.html',
-        'Issue Tracker': 'https://github.com/WebOfTrust/kara/issues',
+        'Documentation': 'https://sally.readthedocs.io/',
+        'Changelog': 'https://sally.readthedocs.io/en/latest/changelog.html',
+        'Issue Tracker': 'https://github.com/WebOfTrust/sally/issues',
     },
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
@@ -87,7 +87,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'kara = kara.app.cli.kli:main',
+            'sally = sally.app.cli.kli:main',
         ]
     },
 )

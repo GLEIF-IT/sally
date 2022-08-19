@@ -11,7 +11,7 @@ from keri import help
 
 
 help.ogler.level = logging.CRITICAL
-help.ogler.reopen(name="kara", temp=True, clear=True)
+help.ogler.reopen(name="sally", temp=True, clear=True)
 
 
 def main():
