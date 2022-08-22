@@ -39,7 +39,9 @@ parser.add_argument('--config-file',
                     action='store',
                     default=None,
                     help="configuration filename override")
-parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store_true")
+parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
+                    required=True)
+parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store")
 
 
 def launch(args, expire=0.0):

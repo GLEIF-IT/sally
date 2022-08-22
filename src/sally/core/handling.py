@@ -15,18 +15,25 @@ from hio.help import decking, Hict
 from keri.core import coring
 from keri.end import ending
 from keri.help import helping
+from keri import help, kering
+
+logger = help.ogler.getLogger()
+
+QVI_SCHEMA = "EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw"
+LE_SCHEMA = "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs"
+OOR_SCHEMA = "E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0"
 
 
-def loadHandlers(hby, cdb, exc):
+def loadHandlers(cdb, exc, tvy):
     """ Load handlers for the peer-to-peer challenge response protocol
 
     Parameters:
-        hby (Habery): database environment
         cdb (CueBaser): communication escrow database environment
         exc (Exchanger): Peer-to-peer message router
+        tvy (Tevery): transaction event log processor
 
     """
-    proofs = PresentationProofHandler(hby=hby, cdb=cdb)
+    proofs = PresentationProofHandler(cdb=cdb)
     exc.addHandler(proofs)
 
 
@@ -39,11 +46,10 @@ class PresentationProofHandler(doing.Doer):
 
     resource = "/presentation"
 
-    def __init__(self, hby, cdb, cues=None, **kwa):
+    def __init__(self, cdb, cues=None, **kwa):
         """ Initialize instance
 
         Parameters:
-            hby (Habery): database environment
             cdb (CueBaser): communication escrow database environment
             cue(Deck): outbound cues
             **kwa (dict): keyword arguments passes to super Doer
@@ -51,13 +57,12 @@ class PresentationProofHandler(doing.Doer):
         """
         self.msgs = decking.Deck()
         self.cues = cues if cues is not None else decking.Deck()
-        self.hby = hby
         self.cdb = cdb
 
         super(PresentationProofHandler, self).__init__()
 
     def do(self, tymth, tock=0.0, **opts):
-        """ Handle incoming messages by parsing and verifying the credential and storing it in the wallet
+        """ Handle incoming messages by queueing presentation messages to be handled when credential is received
 
         Parameters:
             tymth (function): injected function wrapper closure returned by .tymen() of
@@ -65,10 +70,8 @@ class PresentationProofHandler(doing.Doer):
             tock (float): injected initial tock value
 
         Messages:
-            payload is dict representing the body of a /credential/issue message
+            payload is dict representing the body of a /presentation message
             pre is qb64 identifier prefix of sender
-            sigers is list of Sigers representing the sigs on the /credential/issue message
-            verfers is list of Verfers of the keys used to sign the message
 
 
         """
@@ -108,7 +111,7 @@ class Communicator(doing.DoDoer):
 
     TimeoutComms = 600
 
-    def __init__(self, hby, hab, cdb, reger, hook):
+    def __init__(self, hby, hab, cdb, reger, auth, hook):
         """
 
         Create a communicator capable of persistent processing of messages and performing
@@ -119,6 +122,7 @@ class Communicator(doing.DoDoer):
             hab (Hab): identifier environment of this Communicator.  Used to sign hook calls
             cdb (CueBaser): communication escrow database environment
             reger (Reger): credential registry and database
+            auth (str): AID of external authority for contacts and credentials
             hook (str): web hook to call in response to presentations and revocations
 
         """
@@ -127,6 +131,7 @@ class Communicator(doing.DoDoer):
         self.cdb = cdb
         self.reger = reger
         self.hook = hook
+        self.auth = auth
         self.clients = dict()
 
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
@@ -143,8 +148,28 @@ class Communicator(doing.DoDoer):
 
             if self.reger.saved.get(keys=(said,)) is not None:
                 creder = self.reger.creds.get(keys=(said,))
-                self.cdb.iss.rem(keys=(said,))
-                self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
+
+                try:
+                    regk = creder.status
+                    state = self.reger.tevers[regk].vcState(creder.said)
+                    if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
+                        raise kering.ValidationError(f"revoked credential {creder.said} being presented")
+
+                    if creder.schema == QVI_SCHEMA:
+                        self.validateQualifiedvLEIIssuer(creder)
+                    elif creder.schema == LE_SCHEMA:
+                        self.validateLegalEntity(creder)
+                    elif creder.schema == OOR_SCHEMA:
+                        self.validateOfficialRole(creder)
+                    else:
+                        raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
+                                                     f" {creder.schema} from issuer {creder.issuer}")
+                except kering.ValidationError as ex:
+                    logger.error(f"credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
+                else:
+                    self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
+                finally:
+                    self.cdb.iss.rem(keys=(said,))
 
     def processRevocations(self):
 
@@ -178,8 +203,20 @@ class Communicator(doing.DoDoer):
             if said not in self.clients:
                 resource = creder.schema
                 actor = creder.issuer
-                # TODO: include revocation date with payload for revocation
-                self.request(creder.said, resource, action, actor, creder.crd)
+                if action == "iss":  # presentation of issued credential
+                    if creder.schema == QVI_SCHEMA:
+                        data = self.entityPayload(creder)
+                    elif creder.schema == LE_SCHEMA:
+                        data = self.entityPayload(creder)
+                    elif creder.schema == OOR_SCHEMA:
+                        data = self.roleCredentialPayload(creder)
+                    else:
+                        raise kering.ValidationError("this will never happen because all credentials that get here are"
+                                                     " valid")
+                else:  # revocation of credential
+                    data = self.revokePayload(creder)
+
+                self.request(creder.said, resource, action, actor, data)
                 continue
 
             (client, clientDoer) = self.clients[said]
@@ -199,7 +236,7 @@ class Communicator(doing.DoDoer):
                         db.rem(keys=(said, dates))
 
     def processAcks(self):
-        for (said, ), creder in self.cdb.ack.getItemIter():
+        for (said,), creder in self.cdb.ack.getItemIter():
             # TODO: generate EXN ack message with credential information
             print(f"ACK for credential {said} will be sent to {creder.issuer}")
             self.cdb.ack.rem(keys=(said,))
@@ -295,3 +332,90 @@ class Communicator(doing.DoDoer):
         )
 
         self.clients[said] = (client, clientDoer)
+
+    def validateQualifiedvLEIIssuer(self, creder):
+        """ Validate issuer of QVI against known valid issuer
+
+        Parameters:
+            creder (Creder): QVI credential to validate
+
+        Raises:
+            ValidationError: If credential was not issued from known valid issuer
+
+        """
+        if creder.schema != QVI_SCHEMA:
+            raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
+
+        if not creder.issuer == self.auth:
+            raise kering.ValidationError("QVI credential not issued by known valid issuer")
+
+    def validateLegalEntity(self, creder):
+        if creder.schema != LE_SCHEMA:
+            raise kering.ValidationError(f"invalid schema {creder.schema} for LE credential {creder.said}")
+
+        self.validateQVIChain(creder)
+
+    def validateOfficialRole(self, creder):
+        if creder.schema != OOR_SCHEMA:
+            raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
+
+        self.validateQVIChain(creder)
+
+        edges = creder.crd["e"]
+        lesaid = edges["le"]["n"]
+        le = self.reger.creds.get(lesaid)
+        if le is None:
+            raise kering.ValidationError(f"LE credential {lesaid} not found for OOR credential {creder.said}")
+
+        self.validateLegalEntity(le)
+
+    def validateQVIChain(self, creder):
+        edges = creder.crd["e"]
+        qsaid = edges["qvi"]["n"]
+        qcreder = self.reger.creds.get(qsaid)
+        if qcreder is None:
+            raise kering.ValidationError(f"QVI credential {qsaid} not found for credential {creder.said}")
+
+        self.validateQualifiedvLEIIssuer(qcreder)
+
+    @staticmethod
+    def entityPayload(creder):
+        a = creder.crd["a"]
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            LEI=a["LEI"]
+        )
+
+        return data
+
+    @staticmethod
+    def roleCredentialPayload(creder):
+        a = creder.crd["a"]
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            LEI=a["LEI"],
+            personLegalName=a["personLegalName"],
+            officialRole=a["officialRole"]
+        )
+
+        return data
+
+    def revokePayload(self, creder):
+        regk = creder.status
+        state = self.reger.tevers[regk].vcState(creder.said)
+
+        data = dict(
+            schema=creder.schema,
+            credential=creder.said,
+            revocationTimestamp=state.ked["dt"]
+        )
+
+        return data
