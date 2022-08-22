@@ -1,12 +1,12 @@
 # -*- encoding: utf-8 -*-
 """
-kara.app.commands module
+sally.app.commands module
 
 """
 import multicommand
 import logging
 
-from kara.app.cli import commands
+from sally.app.cli import commands
 from keri import help
 
 

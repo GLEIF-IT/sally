@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 """
-KARA
-kara.core.basing module
+SALLY
+sally.core.basing module
 
 Database support
 """
@@ -16,9 +16,9 @@ class CueBaser(dbing.LMDBer):
     intended to be read and dismissed by the controller of the agent.
 
     """
-    TailDirPath = "kara/db"
-    AltTailDirPath = ".kara/db"
-    TempPrefix = "kara_db_"
+    TailDirPath = "sally/db"
+    AltTailDirPath = ".sally/db"
+    TempPrefix = "sally_db_"
 
     def __init__(self, name="cb", headDirPath=None, reopen=True, **kwa):
         """

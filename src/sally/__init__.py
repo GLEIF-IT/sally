@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 """
-KARA
-kara package
+SALLY
+sally package
 
 """
 

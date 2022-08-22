@@ -6,7 +6,7 @@ tests.db.dbing module
 import lmdb
 import os
 
-from kara.core import basing
+from sally.core import basing
 
 
 def test_baser():
@@ -18,6 +18,6 @@ def test_baser():
     assert baser.name == "cb"
     assert baser.temp is False
     assert isinstance(baser.env, lmdb.Environment)
-    assert baser.path.endswith("kara/db/cb")
+    assert baser.path.endswith("sally/db/cb")
     assert baser.env.path() == baser.path
     assert os.path.exists(baser.path)
