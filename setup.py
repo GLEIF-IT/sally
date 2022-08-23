@@ -82,6 +82,7 @@ setup(
     tests_require=[
         'coverage>=5.5',
         'pytest>=6.2.5',
+        'pytest-mock-server>=0.3.0'
     ],
     setup_requires=[
     ],

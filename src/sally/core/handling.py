@@ -139,7 +139,6 @@ class Communicator(doing.DoDoer):
     def processPresentations(self):
 
         for (said,), dater in self.cdb.iss.getItemIter():
-
             # cancel presentations that have been around longer than timeout
             now = helping.nowUTC()
             if now - dater.datetime > datetime.timedelta(seconds=self.TimeoutComms):

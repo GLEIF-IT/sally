@@ -6,6 +6,8 @@ tests.db.dbing module
 import lmdb
 import os
 
+from keri.db import subing
+from keri.vc import proving
 from sally.core import basing
 
 
@@ -21,3 +23,14 @@ def test_baser():
     assert baser.path.endswith("sally/db/cb")
     assert baser.env.path() == baser.path
     assert os.path.exists(baser.path)
+
+    assert isinstance(baser.snd, subing.CesrSuber)
+    assert isinstance(baser.iss, subing.CesrSuber)
+    assert isinstance(baser.rev, subing.CesrSuber)
+    assert isinstance(baser.recv, proving.CrederSuber)
+    assert isinstance(baser.revk, proving.CrederSuber)
+    assert isinstance(baser.ack, proving.CrederSuber)
+
+    assert baser.env.stat()['entries'] == 6
+
+
