@@ -34,16 +34,16 @@ The presentation API will be a POST to the configured web hook URL and will cont
 **QVI Payload**
 ```json
 {
-   "action": "iss",
-   "actor": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-   "data": { 
-       "schema": "EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw",
-       "issuer": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
-       "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
-       "credential": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
-       "recipient": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-       "LEI": "506700GE1G29325QX363"
-    }
+ "action": "iss",
+ "actor": "EPqeYsDPrYdb9HxJ0Yk9gH0VfspezBVLjxAzjfTGsgkY",
+ "data": {
+  "schema": "EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw",
+  "issuer": "EPqeYsDPrYdb9HxJ0Yk9gH0VfspezBVLjxAzjfTGsgkY",
+  "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
+  "credential": "EnR0SI1z7gwUYvnRUSwSLvP8O5oWZ_uzuFKSQGmanR9w",
+  "recipient": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
+  "LEI": "506700GE1G29325QX363"
+ }
 }
 ```
 
@@ -54,10 +54,11 @@ The presentation API will be a POST to the configured web hook URL and will cont
    "actor": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
    "data": { 
        "schema": "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs",
-       "issuer": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
+       "issuer": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
        "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
-       "credential": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
-       "recipient": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
+       "credential": "EHcRiSahoTAKNWZRLNN7MGtUfbMJgUldvPjpc3NCWxsQ",
+       "recipient": "EkjlNRao4AZEmasi2jb9E3u4xnLD5Oe2qkHS_JWCIq-U",
+       "qviCredential": "EnR0SI1z7gwUYvnRUSwSLvP8O5oWZ_uzuFKSQGmanR9w",
        "LEI": "506700GE1G29325QX363"
     }
 }
@@ -70,10 +71,12 @@ The presentation API will be a POST to the configured web hook URL and will cont
    "actor": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
    "data": { 
        "schema": "E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0",
-       "issuer": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
+       "issuer": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
        "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
-       "credential": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
-       "recipient": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
+       "credential": "EecctjiS0dFyohgz0GBC6O9NlJJ7-pSJ3U5ZFEvzm48A",
+       "recipient": "ECRi-yUy_bq2YrgTKI-VbG1MdvWsNstdyjvfx1ZEHJOY",
+       "legalEntityCredential": "EHcRiSahoTAKNWZRLNN7MGtUfbMJgUldvPjpc3NCWxsQ"
+       "qviCredential": "EnR0SI1z7gwUYvnRUSwSLvP8O5oWZ_uzuFKSQGmanR9w",
        "LEI": "506700GE1G29325QX363" ,
        "personLegalName": "Stephan Wolf",
        "officialRole": "Chief Executive Officer"
@@ -94,6 +97,8 @@ The following table contains a description for every field in all the credential
 | data -> issueTimestamp | Issuance timestamp for the credential |
 | data -> credential | SAID of credential being presented |
 | data -> recipient | AID of the holder of the credential |
+| data -> qviCredential | SAID of a chained QVI credential (for LE and OOR credentials) |
+| data -> legalEntityCredential | SAID of a chained legal entity credential (for OOR credentials) |
 | data -> LEI | Legal Entity Identifier |
 | data -> personLegalName | Person Legal Name data field of the OOR credential |
 | data -> officialRole | Official Role Name data field of the OOR credential |

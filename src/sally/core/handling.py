@@ -380,12 +380,15 @@ class Communicator(doing.DoDoer):
     @staticmethod
     def entityPayload(creder):
         a = creder.crd["a"]
+        edges = creder.crd["e"]
+        qsaid = edges["qvi"]["n"]
         data = dict(
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
             credential=creder.said,
             recipient=a["i"],
+            qviCredential=qsaid,
             LEI=a["LEI"]
         )
 
@@ -394,12 +397,17 @@ class Communicator(doing.DoDoer):
     @staticmethod
     def roleCredentialPayload(creder):
         a = creder.crd["a"]
+        edges = creder.crd["e"]
+        qsaid = edges["qvi"]["n"]
+        lesaid = edges["le"]["n"]
         data = dict(
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
             credential=creder.said,
             recipient=a["i"],
+            legalEntityCredential=lesaid,
+            qviCredential=qsaid,
             LEI=a["LEI"],
             personLegalName=a["personLegalName"],
             officialRole=a["officialRole"]
