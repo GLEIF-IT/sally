@@ -9,24 +9,20 @@ Handling support
 """
 import os
 
-import falcon
 from hio.base import doing
-from hio.core import http
 from hio.help import decking
 from keri.app import habbing
-from keri.core import coring, parsing, eventing, scheming
+from keri.core import coring, parsing, eventing
 from keri.help import helping
-from keri.peer import exchanging
 from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
 
-from core.test_handling import load_schema
-from sally.core import handling, basing, serving
+from sally.core import basing, serving
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def test_tevery_cuery():
+def test_tevery_cuery(seeder):
     qvi = "EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM"
     schemaSaid = "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs"
     said = "E2FcBhZhvwXAO3-vUBKHHIwiZGeFENbyWRx0gZtBME9A"
@@ -38,7 +34,7 @@ def test_tevery_cuery():
         tvy = veventing.Tevery(db=hby.db, reger=reger)
         vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
 
-        load_schema(hby.db)
+        seeder.load_schema(hby.db)
 
         # Load file containing entire chain for issued and valid Legal Entity credential
         f = open(os.path.join(TEST_DIR, "legal-entity-vlei.cesr"))
