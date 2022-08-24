@@ -212,7 +212,7 @@ can run the sample hook server in a seperate terminal with the following command
 server and port). 
 
 ```bash
-sally hook server
+sally hook demo
 ```
 
 Once all servers are running, the final step before you can present credentials is to connect the servers together using 
