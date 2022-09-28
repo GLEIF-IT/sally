@@ -17,15 +17,14 @@ from keri.help import helping
 from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
 
-from sally.core import basing, serving
+import issuing
+from sally.core import basing, serving, handling
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def test_tevery_cuery(seeder):
-    qvi = "EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM"
-    schemaSaid = "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs"
-    said = "E2FcBhZhvwXAO3-vUBKHHIwiZGeFENbyWRx0gZtBME9A"
+def test_tevery_cuery(seeder, mockHelpingNowUTC):
+    qvi = "EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ"
 
     with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
         cdb = basing.CueBaser(name="test_cb", temp=True)
@@ -37,21 +36,23 @@ def test_tevery_cuery(seeder):
         seeder.load_schema(hby.db)
 
         # Load file containing entire chain for issued and valid Legal Entity credential
-        f = open(os.path.join(TEST_DIR, "legal-entity-vlei.cesr"))
-        le = f.read()
-        assert len(le) == 8020
+        issr = issuing.CredentialIssuer()
+        issr.issue_legal_entity_vlei(seeder)
 
-        # Parse all LE artifacts
-        parsing.Parser().parse(ims=bytearray(le.encode("utf-8")), kvy=kvy, tvy=tvy, vry=vry)
+        ims = issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid)
+        parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
 
-        saider = tvy.reger.saved.get(keys=(said,))
-        assert saider is not None
-        creder = tvy.reger.creds.get(keys=(said,))
+        while not tvy.reger.saved.get(keys=(issr.lesaid,)):
+            kvy.processEscrows()
+            tvy.processEscrows()
+            vry.processEscrows()
+
+        creder = tvy.reger.creds.get(keys=(issr.lesaid,))
         assert creder is not None
 
         prefixer = coring.Prefixer(qb64=creder.issuer)
-        assert creder.said == said
-        assert creder.schema == schemaSaid
+        assert creder.said == issr.lesaid
+        assert creder.schema == handling.LE_SCHEMA
         assert prefixer.qb64 == qvi
 
         cues = decking.Deck()
@@ -70,5 +71,5 @@ def test_tevery_cuery(seeder):
         assert prefixer.qb64 == qvi
         dater = cdb.rev.get(keys=(creder.said,))
         assert dater is not None
-        assert dater.datetime < helping.nowUTC()
+        assert dater.datetime == helping.nowUTC()  # mocked to return the same date
 

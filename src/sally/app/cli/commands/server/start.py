@@ -28,6 +28,13 @@ parser.add_argument('-w', '--web-hook', help='Webhook address for outbound notif
                     required=True,
                     default=None
                     )
+parser.add_argument("--escrow-timeout", "-e", help="timeout (in minutes) for escrowed events that have not been "
+                                                   "delivered to the web hook.  Defaults to 10",
+                    default=10,
+                    action="store")
+parser.add_argument("--retry-delay", "-r", help="retry delay (in seconds) for failed web hook attempts",
+                    default=10,
+                    action="store")
 parser.add_argument('--base', '-b', help='additional optional prefix to file location of KERI keystore',
                     required=False, default="")
 parser.add_argument('--alias', '-a', help='human readable alias for the new identifier prefix', required=True)
@@ -41,7 +48,7 @@ parser.add_argument('--config-file',
                     help="configuration filename override")
 parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
                     required=True)
-parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store")
+parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store_true")
 
 
 def launch(args, expire=0.0):
@@ -53,6 +60,8 @@ def launch(args, expire=0.0):
     auth = args.auth
 
     listen = args.listen
+    timeout = args.escrow_timeout
+    retry = args.retry_delay
 
     alias = args.alias
     configFile = args.configFile
@@ -84,7 +93,8 @@ def launch(args, expire=0.0):
 
     doers = [hbyDoer, obl]
 
-    doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth, listen=listen)
+    doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth,
+                           listen=listen, timeout=timeout, retry=retry)
 
     print(f"Sally Server listening on {httpPort}")
     directing.runController(doers=doers, expire=expire)

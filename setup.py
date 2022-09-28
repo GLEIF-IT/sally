@@ -76,6 +76,7 @@ setup(
         'multicommand>=1.0.0',
         'blake3>=0.3.1',
         'falcon>=3.1.0',
+        'http_sfv>=0.9.8'
     ],
     extras_require={
     },

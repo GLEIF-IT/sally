@@ -8,6 +8,7 @@ EXN Message handling
 import datetime
 import json
 from urllib import parse
+from base64 import urlsafe_b64encode as encodeB64
 
 from hio.base import doing
 from hio.core import http
@@ -17,11 +18,14 @@ from keri.end import ending
 from keri.help import helping
 from keri import help, kering
 
+from sally.core import httping
+
 logger = help.ogler.getLogger()
 
-QVI_SCHEMA = "EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw"
-LE_SCHEMA = "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs"
-OOR_SCHEMA = "E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0"
+QVI_SCHEMA = "EE4R4HtygsIDdW-XJiA3CJEs5Yrb2eK5YeohAy_rdyZB"
+LE_SCHEMA = "EDM9E_arYaIBSCJc1AK4alHW53_wWav9iEEcZ-ryQ373"
+OOR_AUTH_SCHEMA = "ECVvJA-DJao9cVJc0jdOow1GpKhDRTNuBF73l5JR52kn"
+OOR_SCHEMA = "EG6cu7XSKRvz8TZCJ7RFa-g2tkrk5n_FW3eVa4R0rdKm"
 
 
 def loadHandlers(cdb, exc, tvy):
@@ -109,9 +113,7 @@ class Communicator(doing.DoDoer):
 
     """
 
-    TimeoutComms = 600
-
-    def __init__(self, hby, hab, cdb, reger, auth, hook):
+    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0):
         """
 
         Create a communicator capable of persistent processing of messages and performing
@@ -124,6 +126,8 @@ class Communicator(doing.DoDoer):
             reger (Reger): credential registry and database
             auth (str): AID of external authority for contacts and credentials
             hook (str): web hook to call in response to presentations and revocations
+            timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
+            retry (float): retry delay (in seconds) for failed web hook attempts
 
         """
         self.hby = hby
@@ -132,6 +136,8 @@ class Communicator(doing.DoDoer):
         self.reger = reger
         self.hook = hook
         self.auth = auth
+        self.timeout = timeout
+        self.retry = retry
         self.clients = dict()
 
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
@@ -141,7 +147,7 @@ class Communicator(doing.DoDoer):
         for (said,), dater in self.cdb.iss.getItemIter():
             # cancel presentations that have been around longer than timeout
             now = helping.nowUTC()
-            if now - dater.datetime > datetime.timedelta(seconds=self.TimeoutComms):
+            if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
                 self.cdb.iss.rem(keys=(said,))
                 continue
 
@@ -176,7 +182,7 @@ class Communicator(doing.DoDoer):
 
             # cancel revocations that have been around longer than timeout
             now = helping.nowUTC()
-            if now - dater.datetime > datetime.timedelta(seconds=self.TimeoutComms):
+            if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
                 self.cdb.rev.rem(keys=(said,))
                 continue
 
@@ -225,13 +231,13 @@ class Communicator(doing.DoDoer):
                 client.close()
                 del self.clients[said]
 
-                if response["status"] == 200:
+                if 200 <= response["status"] < 300:
                     db.rem(keys=(said, dates))
                     self.cdb.ack.pin(keys=(said,), val=creder)
                 else:
                     dater = coring.Dater(qb64=dates)
                     now = helping.nowUTC()
-                    if now - dater.datetime > datetime.timedelta(seconds=self.TimeoutComms):
+                    if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
                         db.rem(keys=(said, dates))
 
     def processAcks(self):
@@ -268,7 +274,7 @@ class Communicator(doing.DoDoer):
             except Exception as e:
                 print(e)
 
-            yield 0.5
+            yield self.retry
 
     def processEscrows(self):
         """
@@ -304,13 +310,6 @@ class Communicator(doing.DoDoer):
         )
 
         raw = json.dumps(body).encode("utf-8")
-        sigers = self.hab.sign(ser=raw,
-                               verfers=self.hab.kever.verfers,
-                               indexed=True)
-
-        signage = ending.Signage(markers=sigers, indexed=True, signer=None, ordinal=None, digest=None,
-                                 kind=None)
-
         headers = Hict([
             ("Content-Type", "application/json"),
             ("Content-Length", len(raw)),
@@ -318,10 +317,20 @@ class Communicator(doing.DoDoer):
             ("Sally-Resource", resource),
             ("Sally-Timestamp", helping.nowIso8601()),
         ])
+        path = purl.path or "/"
+
+        keyid = encodeB64(self.hab.kever.serder.verfers[0].raw).decode('utf-8')
+        header, unq = httping.siginput(self.hab, "sig0", "POST", path, headers, fields=["Sally-Resource", "@method",
+                                                                                        "@path",
+                                                                                        "Sally-Timestamp"],
+                                       alg="ed25519", keyid=keyid)
+
+        headers.extend(header)
+        signage = ending.Signage(markers=dict(sig0=unq), indexed=True, signer=self.hab.pre, ordinal=None, digest=None,
+                                 kind=None)
 
         headers.extend(ending.signature([signage]))
 
-        path = purl.path or "/"
         client.request(
             method='POST',
             path=path,
@@ -354,19 +363,40 @@ class Communicator(doing.DoDoer):
 
         self.validateQVIChain(creder)
 
-    def validateOfficialRole(self, creder):
-        if creder.schema != OOR_SCHEMA:
+    def validateOfficialRoleAuth(self, creder):
+        if creder.schema != OOR_AUTH_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
-
-        self.validateQVIChain(creder)
 
         edges = creder.crd["e"]
         lesaid = edges["le"]["n"]
         le = self.reger.creds.get(lesaid)
         if le is None:
-            raise kering.ValidationError(f"LE credential {lesaid} not found for OOR credential {creder.said}")
+            raise kering.ValidationError(f"LE credential {lesaid} not found for AUTH credential {creder.said}")
 
         self.validateLegalEntity(le)
+
+    def validateOfficialRole(self, creder):
+        if creder.schema != OOR_SCHEMA:
+            raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
+
+        edges = creder.crd["e"]
+        asaid = edges["auth"]["n"]
+        auth = self.reger.creds.get(asaid)
+        if auth is None:
+            raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
+
+        if auth.crd["a"]["AID"] != creder.subject["i"]:
+            raise kering.ValidationError(f"invalid issuee {creder.subject['i']} for OOR credential {creder.said}")
+
+        if auth.crd["a"]["personLegalName"] != creder.subject["personLegalName"]:
+            raise kering.ValidationError(f"invalid personLegalNAme {creder.subject['personLegalName']} for OOR "
+                                         f"credential {creder.said}")
+
+        if auth.crd["a"]["officialRole"] != creder.subject["officialRole"]:
+            raise kering.ValidationError(f"invalid role {creder.subject['officialRole']} for OOR credential"
+                                         f" {creder.said}")
+
+        self.validateOfficialRoleAuth(auth)
 
     def validateQVIChain(self, creder):
         edges = creder.crd["e"]
@@ -398,16 +428,14 @@ class Communicator(doing.DoDoer):
     def roleCredentialPayload(creder):
         a = creder.crd["a"]
         edges = creder.crd["e"]
-        qsaid = edges["qvi"]["n"]
-        lesaid = edges["le"]["n"]
+        asaid = edges["auth"]["n"]
         data = dict(
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
             credential=creder.said,
             recipient=a["i"],
-            legalEntityCredential=lesaid,
-            qviCredential=qsaid,
+            authCredential=asaid,
             LEI=a["LEI"],
             personLegalName=a["personLegalName"],
             officialRole=a["officialRole"]

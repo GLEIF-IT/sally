@@ -5,7 +5,6 @@ sally.core.handling module
 
 Handling support
 """
-import os
 
 import falcon
 from hio.base import doing
@@ -18,9 +17,8 @@ from keri.peer import exchanging
 from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
 
+import issuing
 from sally.core import handling, basing
-
-TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def test_presentation_handler():
@@ -56,15 +54,10 @@ def test_presentation_handler():
         assert dater.datetime < helping.nowUTC()
 
 
-def test_communicator(seeder):
+def test_communicator(seeder, mockHelpingNowUTC):
     url = "http://localhost:5999/"
     salt = b'abcdef0123456789'
-    root = "EWN6BzdXo6IByOsuh_fYanK300iEOrQKf6msmbIeC4Y0"
-    qvi = "EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM"
-    leSchemaSaid = "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs"
-    oorSchemaSaid = "E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0"
-    lesaid = "E2FcBhZhvwXAO3-vUBKHHIwiZGeFENbyWRx0gZtBME9A"
-    oorsaid = "EvydcrDPbJSmsHrIc50c-FW0v0VZQXwV6qA2MRDlvEp0"
+    root = "EID5n0m83IVIra_VZhSpov4RG7D9gxBnZeNPTlJK40TM"
 
     with habbing.openHab(name="test", base="test", salt=salt, temp=True) as (hby, hab):
         cdb = basing.CueBaser(name="test_cb", temp=True)
@@ -74,27 +67,31 @@ def test_communicator(seeder):
         vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
         msgs = decking.Deck()
         httpDoer = launch_mock_server(msgs=msgs)
-        comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=tvy.reger, hook=url, auth=root)
+        comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=tvy.reger, hook=url, auth=root, retry=0.25)
 
         seeder.load_schema(hby.db)
 
-        # Load file containing entire chain for issued and valid Legal Entity credential
-        f = open(os.path.join(TEST_DIR, "legal-entity-vlei.cesr"))
-        le = f.read()
-        assert len(le) == 8020
+        # Issue up to legal entity credential
+        issr = issuing.CredentialIssuer()
+        issr.issue_legal_entity_vlei(seeder)
 
-        # Parse all LE artifacts
-        parsing.Parser().parse(ims=bytearray(le.encode("utf-8")), kvy=kvy, tvy=tvy, vry=vry)
+        ims = issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid)
+        parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
 
-        saider = tvy.reger.saved.get(keys=(lesaid,))
+        while not tvy.reger.saved.get(keys=(issr.lesaid,)):
+            kvy.processEscrows()
+            tvy.processEscrows()
+            vry.processEscrows()
+
+        saider = tvy.reger.saved.get(keys=(issr.lesaid,))
         assert saider is not None
-        creder = tvy.reger.creds.get(keys=(lesaid,))
+        creder = tvy.reger.creds.get(keys=(issr.lesaid,))
         assert creder is not None
 
         prefixer = coring.Prefixer(qb64=creder.issuer)
-        assert creder.said == lesaid
-        assert creder.schema == leSchemaSaid
-        assert prefixer.qb64 == qvi
+        assert creder.said == issr.lesaid
+        assert creder.schema == handling.LE_SCHEMA
+        assert prefixer.qb64 == issr.qviHab.pre
 
         # Replicate a presentation of the LE credential
         now = coring.Dater()
@@ -103,7 +100,7 @@ def test_communicator(seeder):
 
         doers = [httpDoer, comms]
 
-        limit = 2.0
+        limit = 5.0
         tock = 0.25
         doist = doing.Doist(limit=limit, tock=tock)
         doist.do(doers=doers)
@@ -112,36 +109,37 @@ def test_communicator(seeder):
         assert len(msgs) == 1
         req = msgs.popleft()
         assert req.headers["SALLY-RESOURCE"] == creder.schema
+        assert req.headers["SIGNATURE-INPUT"] == ('sig0=("sally-resource" "@method" "@path" '
+                                                  '"sally-timestamp");created=1609459200;keyid="ILWsN7_dmckaGB4kS-S50PB'
+                                                  'nUi1KzvFq5Tkg1DoIa6s=";alg="ed25519"')
         assert "SIGNATURE" in req.headers
         assert "SALLY-TIMESTAMP" in req.headers
         data = req.get_media()
         assert data == {'action': 'iss',
-                        'actor': 'EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM',
+                        'actor': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                         'data': {'LEI': '5493001KJTIIGC8Y1R17',
-                                 'credential': 'E2FcBhZhvwXAO3-vUBKHHIwiZGeFENbyWRx0gZtBME9A',
-                                 'issueTimestamp': '2022-08-22T21:02:31.049303+00:00',
-                                 'issuer': 'EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM',
-                                 'qviCredential': 'EQmMF4GCwO0JK6aXSj8ZXGq5qCQMmdKOD2jsvYDWADMQ',
-                                 'recipient': 'EKXPX7hWw8KK5Y_Mxs2TOuCrGdN45vPIZ78NofRlVBws',
-                                 'schema': 'EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs'}}
+                                 'credential': 'EHZJZYIcygHHmCg7hpIQgObVvTgwu3U1EbmuytTZQhd7',
+                                 'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
+                                 'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
+                                 'qviCredential': 'EKivuNtimLda6lh5q_3M-cHVTi5q5PzESekY3UXtumiC',
+                                 'recipient': 'EI0QTANut9IcXuPDbr7la4JJrjhMZ-EEk5q7Ahds8qBa',
+                                 'schema': 'EDM9E_arYaIBSCJc1AK4alHW53_wWav9iEEcZ-ryQ373'}}
 
-        # Load file containing entire chain for issued and valid OOR credential
-        f = open(os.path.join(TEST_DIR, "oor-vlei.cesr"))
-        oor = f.read()
-        assert len(oor) == 17736
+        ims = issuing.share_credential(issr.qviHab, issr.qviRgy, issr.oorsaid)
+        parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
 
-        # Parse all OOR artifacts
-        parsing.Parser().parse(ims=bytearray(oor.encode("utf-8")), kvy=kvy, tvy=tvy, vry=vry)
+        while not tvy.reger.saved.get(keys=(issr.oorsaid,)):
+            kvy.processEscrows()
+            tvy.processEscrows()
+            vry.processEscrows()
 
-        saider = tvy.reger.saved.get(keys=(oorsaid,))
-        assert saider is not None
-        creder = tvy.reger.creds.get(keys=(oorsaid,))
+        creder = tvy.reger.creds.get(keys=(issr.oorsaid,))
         assert creder is not None
 
         prefixer = coring.Prefixer(qb64=creder.issuer)
-        assert creder.said == oorsaid
-        assert creder.schema == oorSchemaSaid
-        assert prefixer.qb64 == qvi
+        assert creder.said == issr.oorsaid
+        assert creder.schema == handling.OOR_SCHEMA
+        assert prefixer.qb64 == issr.qviHab.pre
 
         # Replicate a presentation of the OOR credential
         now = coring.Dater()
@@ -159,21 +157,24 @@ def test_communicator(seeder):
         assert len(msgs) == 1
         req = msgs.popleft()
         assert req.headers["SALLY-RESOURCE"] == creder.schema
+        assert req.headers["SIGNATURE-INPUT"] == ('sig0=("sally-resource" "@method" "@path" '
+                                                  '"sally-timestamp");created=1609459200;keyid="ILWsN7_dmckaGB4kS-S50PB'
+                                                  'nUi1KzvFq5Tkg1DoIa6s=";alg="ed25519"')
         assert "SIGNATURE" in req.headers
         assert "SALLY-TIMESTAMP" in req.headers
+
         data = req.get_media()
         assert data == {'action': 'iss',
-                        'actor': 'EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM',
-                        'data': {'LEI': '6383001AJTYIGC8Y1X37',
-                                 'credential': 'EvydcrDPbJSmsHrIc50c-FW0v0VZQXwV6qA2MRDlvEp0',
-                                 'issueTimestamp': '2022-08-22T21:02:42.203424+00:00',
-                                 'issuer': 'EY4ldIBDZP4Tpnm3RX320BO0yz8Uz2nUSN-C409GnCJM',
-                                 'legalEntityCredential': 'E2FcBhZhvwXAO3-vUBKHHIwiZGeFENbyWRx0gZtBME9A',
-                                 'officialRole': 'Chief Executive Officer',
-                                 'personLegalName': 'John Smith',
-                                 'qviCredential': 'EQmMF4GCwO0JK6aXSj8ZXGq5qCQMmdKOD2jsvYDWADMQ',
-                                 'recipient': 'Esf8b_AngI1d0KbOFjPGIfpVani0HTagWeaYTLs14PlE',
-                                 'schema': 'E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0'}}
+                        'actor': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
+                        'data': {'LEI': '5493001KJTIIGC8Y1R17',
+                                 'authCredential': 'EGCAaoPqhlTXPfYTHUewb04RS7LhoUxYi0yj3bHMGL4P',
+                                 'credential': 'EJ65WoEyv4ePUFQ1L-ARTqVQgMovm-UalucJZcfXG2zl',
+                                 'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
+                                 'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
+                                 'officialRole': 'Baba Yaga',
+                                 'personLegalName': 'John Wick',
+                                 'recipient': 'EIf2fK7M9Mfd-Twv2Ig3n8PpGM_p976mciznHoknVPLs',
+                                 'schema': 'EG6cu7XSKRvz8TZCJ7RFa-g2tkrk5n_FW3eVa4R0rdKm'}}
 
 
 def launch_mock_server(port=5999, msgs=None):
@@ -201,3 +202,5 @@ class MockListener:
     def on_post(self, req, rep):
         self.msgs.append(req)
         rep.status = falcon.HTTP_200
+
+

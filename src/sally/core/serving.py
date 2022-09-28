@@ -7,6 +7,8 @@ Endpoint service
 """
 
 import falcon
+from base64 import urlsafe_b64encode as encodeB64
+
 from hio.base import doing
 from hio.core import http
 from hio.help import decking
@@ -23,7 +25,7 @@ from sally.core import handling, basing
 logger = help.ogler.getLogger()
 
 
-def setup(hby, *, alias, httpPort, hook, auth, listen=False):
+def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3):
     """ Setup serving package and endpoints
 
     Parameters:
@@ -33,6 +35,8 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False):
         hook (str): URL of external web hook to notify of credential issuance and revocations
         auth (str): alias or AID of external authority for contacts and credentials
         listen (bool): flag indicating whether the agent listens persistently or polls mailboxes
+        timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
+        retry (int): retry delay (in seconds) for failed web hook attempts
 
     """
     # make hab
@@ -41,12 +45,21 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False):
         hab = hby.makeHab(name=alias, transferable=True)
 
     print(f"Using hab {hab.name}:{hab.pre}")
+    print(f"\tCESR Qualifed Base64 Public Key:  {hab.kever.serder.verfers[0].qb64}")
+    print(f"\tPlain Base64 Public Key:          {encodeB64(hab.kever.serder.verfers[0].raw).decode('utf-8')}")
     mbx = storing.Mailboxer(name=hby.name)
     reger = viring.Reger(name=hab.name, db=hab.db, temp=False)
     rep = storing.Respondant(hby=hby, mbx=mbx)
     verifier = verifying.Verifier(hby=hby, reger=reger)
     cdb = basing.CueBaser(name=hby.name)
-    comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=reger, auth=auth, hook=hook)
+    comms = handling.Communicator(hby=hby,
+                                  hab=hab,
+                                  cdb=cdb,
+                                  reger=reger,
+                                  auth=auth,
+                                  hook=hook,
+                                  timeout=timeout,
+                                  retry=retry)
 
     rvy = routing.Revery(db=hby.db)
 
