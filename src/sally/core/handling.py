@@ -22,19 +22,18 @@ from sally.core import httping
 
 logger = help.ogler.getLogger()
 
-QVI_SCHEMA = "EE4R4HtygsIDdW-XJiA3CJEs5Yrb2eK5YeohAy_rdyZB"
-LE_SCHEMA = "EDM9E_arYaIBSCJc1AK4alHW53_wWav9iEEcZ-ryQ373"
-OOR_AUTH_SCHEMA = "ECVvJA-DJao9cVJc0jdOow1GpKhDRTNuBF73l5JR52kn"
-OOR_SCHEMA = "EG6cu7XSKRvz8TZCJ7RFa-g2tkrk5n_FW3eVa4R0rdKm"
+QVI_SCHEMA = "ELqriXX1-lbV9zgXP4BXxqJlpZTgFchll3cyjaCyVKiz"
+LE_SCHEMA = "EK0jwjJbtYLIynGtmXXLO5MGJ7BDuX2vr2_MhM9QjAxZ"
+OOR_AUTH_SCHEMA = "EDqjl80uP0r_SNSp-yImpLGglTEbOwgO77wsOPjyRVKy"
+OOR_SCHEMA = "EIL-RWno8cEnkGTi9cr7-PFg_IXTPx9fZ0r9snFFZ0nm"
 
 
-def loadHandlers(cdb, exc, tvy):
+def loadHandlers(cdb, exc):
     """ Load handlers for the peer-to-peer challenge response protocol
 
     Parameters:
         cdb (CueBaser): communication escrow database environment
         exc (Exchanger): Peer-to-peer message router
-        tvy (Tevery): transaction event log processor
 
     """
     proofs = PresentationProofHandler(cdb=cdb)
@@ -147,19 +146,18 @@ class Communicator(doing.DoDoer):
         for (said,), dater in self.cdb.iss.getItemIter():
             # cancel presentations that have been around longer than timeout
             now = helping.nowUTC()
+            print(f"looking for credential {said}")
             if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
                 self.cdb.iss.rem(keys=(said,))
                 continue
 
             if self.reger.saved.get(keys=(said,)) is not None:
                 creder = self.reger.creds.get(keys=(said,))
-
                 try:
                     regk = creder.status
                     state = self.reger.tevers[regk].vcState(creder.said)
                     if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
-
                     if creder.schema == QVI_SCHEMA:
                         self.validateQualifiedvLEIIssuer(creder)
                     elif creder.schema == LE_SCHEMA:
@@ -170,6 +168,7 @@ class Communicator(doing.DoDoer):
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
                 except kering.ValidationError as ex:
+                    print(ex)
                     logger.error(f"credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
                 else:
                     self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
@@ -186,7 +185,7 @@ class Communicator(doing.DoDoer):
                 self.cdb.rev.rem(keys=(said,))
                 continue
 
-            creder = self.reger.ccrd.get(keys=(said,))
+            creder = self.reger.creds.get(keys=(said,))
             if creder is None:  # received revocation before credential.  probably an error but let it timeout
                 continue
 
@@ -210,7 +209,7 @@ class Communicator(doing.DoDoer):
                 actor = creder.issuer
                 if action == "iss":  # presentation of issued credential
                     if creder.schema == QVI_SCHEMA:
-                        data = self.entityPayload(creder)
+                        data = self.qviPayload(creder)
                     elif creder.schema == LE_SCHEMA:
                         data = self.entityPayload(creder)
                     elif creder.schema == OOR_SCHEMA:
@@ -367,7 +366,7 @@ class Communicator(doing.DoDoer):
         if creder.schema != OOR_AUTH_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
-        edges = creder.crd["e"]
+        edges = creder.chains
         lesaid = edges["le"]["n"]
         le = self.reger.creds.get(lesaid)
         if le is None:
@@ -379,14 +378,15 @@ class Communicator(doing.DoDoer):
         if creder.schema != OOR_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
-        edges = creder.crd["e"]
+        edges = creder.chains
         asaid = edges["auth"]["n"]
         auth = self.reger.creds.get(asaid)
         if auth is None:
             raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
 
         if auth.crd["a"]["AID"] != creder.subject["i"]:
-            raise kering.ValidationError(f"invalid issuee {creder.subject['i']} for OOR credential {creder.said}")
+            raise kering.ValidationError(f"invalid issuee {creder.subject['i']}  doesnt match AUTH value of "
+                                         f"{auth.crd['a']['AID']} for OOR " f"credential {creder.said}")
 
         if auth.crd["a"]["personLegalName"] != creder.subject["personLegalName"]:
             raise kering.ValidationError(f"invalid personLegalNAme {creder.subject['personLegalName']} for OOR "
@@ -399,7 +399,7 @@ class Communicator(doing.DoDoer):
         self.validateOfficialRoleAuth(auth)
 
     def validateQVIChain(self, creder):
-        edges = creder.crd["e"]
+        edges = creder.chains
         qsaid = edges["qvi"]["n"]
         qcreder = self.reger.creds.get(qsaid)
         if qcreder is None:
@@ -408,9 +408,23 @@ class Communicator(doing.DoDoer):
         self.validateQualifiedvLEIIssuer(qcreder)
 
     @staticmethod
+    def qviPayload(creder):
+        a = creder.crd["a"]
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            LEI=a["LEI"]
+        )
+
+        return data
+
+    @staticmethod
     def entityPayload(creder):
         a = creder.crd["a"]
-        edges = creder.crd["e"]
+        edges = creder.chains
         qsaid = edges["qvi"]["n"]
         data = dict(
             schema=creder.schema,
@@ -427,7 +441,7 @@ class Communicator(doing.DoDoer):
     @staticmethod
     def roleCredentialPayload(creder):
         a = creder.crd["a"]
-        edges = creder.crd["e"]
+        edges = creder.chains
         asaid = edges["auth"]["n"]
         data = dict(
             schema=creder.schema,

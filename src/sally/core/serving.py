@@ -74,8 +74,9 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
                  db=hby.db,
                  local=False)
     tvy.registerReplyRoutes(router=rvy.rtr)
+    tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues)
 
-    handling.loadHandlers(exc=exc, cdb=cdb, tvy=tvy)
+    handling.loadHandlers(exc=exc, cdb=cdb)
 
     app = falcon.App(
         middleware=falcon.CORSMiddleware(
@@ -88,7 +89,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
-    doers = [httpServerDoer, comms, exc]
+    doers = [httpServerDoer, comms, exc, tc]
     if listen:
         print("This is where we start HttpEnd instead of MailboxDirector")
     else:

@@ -30,10 +30,10 @@ parser.add_argument('-w', '--web-hook', help='Webhook address for outbound notif
                     )
 parser.add_argument("--escrow-timeout", "-e", help="timeout (in minutes) for escrowed events that have not been "
                                                    "delivered to the web hook.  Defaults to 10",
-                    default=10,
+                    default=10, type=int,
                     action="store")
 parser.add_argument("--retry-delay", "-r", help="retry delay (in seconds) for failed web hook attempts",
-                    default=10,
+                    default=10, type=int,
                     action="store")
 parser.add_argument('--base', '-b', help='additional optional prefix to file location of KERI keystore',
                     required=False, default="")

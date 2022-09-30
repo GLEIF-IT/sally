@@ -25,10 +25,9 @@ def test_presentation_handler():
     salt = coring.Salter(raw=b'abcdef0123456789').qb64
     with habbing.openHby(name="test", base="test", salt=salt) as hby:
         cdb = basing.CueBaser(name="test_cb")
-        tvy = veventing.Tevery(db=hby.db)
         exc = exchanging.Exchanger(hby=hby, handlers=[])
 
-        handling.loadHandlers(cdb=cdb, exc=exc, tvy=tvy)
+        handling.loadHandlers(cdb=cdb, exc=exc)
 
         assert len(exc.routes) == 1
         assert exc.routes["/presentation"] is not None
@@ -118,12 +117,12 @@ def test_communicator(seeder, mockHelpingNowUTC):
         assert data == {'action': 'iss',
                         'actor': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                         'data': {'LEI': '5493001KJTIIGC8Y1R17',
-                                 'credential': 'EHZJZYIcygHHmCg7hpIQgObVvTgwu3U1EbmuytTZQhd7',
+                                 'credential': 'EDry2BSZ6VI08Il5tJghALNPxQO598Xjo4NNQj7uY9Y4',
                                  'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
                                  'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
-                                 'qviCredential': 'EKivuNtimLda6lh5q_3M-cHVTi5q5PzESekY3UXtumiC',
+                                 'qviCredential': 'ECXf4lLLZilz5I8oZTnvhoNVUrJ6Nj8CdugVYe7qZXRq',
                                  'recipient': 'EI0QTANut9IcXuPDbr7la4JJrjhMZ-EEk5q7Ahds8qBa',
-                                 'schema': 'EDM9E_arYaIBSCJc1AK4alHW53_wWav9iEEcZ-ryQ373'}}
+                                 'schema': 'EK0jwjJbtYLIynGtmXXLO5MGJ7BDuX2vr2_MhM9QjAxZ'}}
 
         ims = issuing.share_credential(issr.qviHab, issr.qviRgy, issr.oorsaid)
         parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
@@ -167,14 +166,14 @@ def test_communicator(seeder, mockHelpingNowUTC):
         assert data == {'action': 'iss',
                         'actor': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                         'data': {'LEI': '5493001KJTIIGC8Y1R17',
-                                 'authCredential': 'EGCAaoPqhlTXPfYTHUewb04RS7LhoUxYi0yj3bHMGL4P',
-                                 'credential': 'EJ65WoEyv4ePUFQ1L-ARTqVQgMovm-UalucJZcfXG2zl',
+                                 'authCredential': 'EDW2CKPNUU5cKgEoxhuMQsFpKRqJmsAmX5y2Z2VX6kYy',
+                                 'credential': 'ENId_lQMJzyMki1wy9Vrfzn-DsBrYAcY2Gdv7qcUH-6n',
                                  'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
                                  'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                                  'officialRole': 'Baba Yaga',
                                  'personLegalName': 'John Wick',
                                  'recipient': 'EIf2fK7M9Mfd-Twv2Ig3n8PpGM_p976mciznHoknVPLs',
-                                 'schema': 'EG6cu7XSKRvz8TZCJ7RFa-g2tkrk5n_FW3eVa4R0rdKm'}}
+                                 'schema': 'EIL-RWno8cEnkGTi9cr7-PFg_IXTPx9fZ0r9snFFZ0nm'}}
 
 
 def launch_mock_server(port=5999, msgs=None):

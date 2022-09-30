@@ -156,8 +156,8 @@ And leave the server running to is is accessible to Sally and the agents running
 
 ### KERIpy
 
-From KERIpy you will run 2 servers that provide witnesses and a sample vLEI ecosystem with 10 running agents.  In addition
-you will run a shell script which uses `curl` to POST commands against the agent to issue credentials.
+From KERIpy you will run 1 server that provide witnesses.  In addition you will run a shell script which uses `kli` to
+execute KERI commands to create identifiers and issue credentials.
 
 First, to install all required dependencies run:
 
@@ -171,19 +171,14 @@ Then in one terminal to start the witness servers run and leave running:
 kli witness demo
 ```
 
-and in another terminal to start the vLEI agents run and leave running:
 
-```bash
-kli agent vlei
-```
-
-Now that the servers are running, you will use the shell script `scripts/demo/vLEI/issue-xbrl-attestation-agent.sh` to
+Now that the servers are running, you will use the shell script `scripts/demo/vLEI/issue-xbrl-attestation.sh` to
 create several sample vLEI participants including GLEIF External, a Qualified vLEI Issuer, a Legal Entity and a person 
 representing the Legal Entity in an Official Role and issue them vLEI credentals.  Simply execute the script and wait 
 for it to complete creating all identifiers and issuing all credentuals.
 
 ```bash
-./scripts/demo/vLEI/issue-xbrl-attestation-agent.sh
+./scripts/demo/vLEI/issue-xbrl-attestation.sh
 ```
 
 ### Sally
@@ -196,15 +191,15 @@ for `Sally`).  You will need to adjust the paths in the script to point to the c
 
 ```bash
 export KERIPY=../keripy
-kli init --name sally --nopasscode --config-dir ${KERIPY}/scripts --config-file demo-witness-oobis-schema --salt 0AMDEyMzq1Nxc4OWxtbm9fle
+kli init --name sally --nopasscode --config-dir ../keripy/scripts --config-file demo-witness-oobis-schema --salt 0ACDXyMzq1Nxc4OWxtbm9fle
 kli incept --name sally --alias sally --file ${KERIPY}/scripts/demo/data/trans-wits-sample.json
-kli oobi resolve --name sally --oobi-alias legal-entity --oobi http://127.0.0.1:5643/oobi/EKXPX7hWw8KK5Y_Mxs2TOuCrGdN45vPIZ78NofRlVBws/witness/BuyRFMideczFZoapylLIyCjSdhtqVb31wZkRKvPfNqkw
+kli oobi resolve --name sally --oobi-alias qvi --oobi http://127.0.0.1:5642/oobi/EHMnCf8_nIemuPx-cUHaDQq8zSnQIFAurdEpwHpNbnvX/witness/BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha
 ```
 
 Finally, you can start (and leave running) the Sally server with:
 
 ```bash
-sally server start --name sally --alias sally --web-hook http://127.0.0.1:9923 --auth EWN6BzdXo6IByOsuh_fYanK300iEOrQKf6msmbIeC4Y0
+sally server start --name sally --alias sally --web-hook http://127.0.0.1:9923 --auth EHOuGiHMxJShXHgSb6k_9pqxmRb8H-LT0R2hQouHp8pW
 ```
 
 If you require a sample web hook to receive the notifications from the Sally server one is provided in this repo.  You
@@ -217,10 +212,10 @@ sally hook demo
 
 Once all servers are running, the final step before you can present credentials is to connect the servers together using 
 OOBI resolution and then you will be able to present the credentials from the vLEI agents to the Sally server.  To
-connect the vLEI agent to the Sally server, run the following curl command:
+connect the vLEI issuer to the Sally server, run the following curl command:
 
 ```bash
-curl -X POST "http://localhost:5628/oobi" -H "accept: */*" -H "Content-Type: application/json" -d "{\"oobialias\":\"sally\",\"url\":\"http://127.0.0.1:9723/oobi\"}"
+kli oobi resolve --name qvi --oobi-alias sally --oobi http://127.0.0.1:9723/oobi
 ```
 
 ### Presenting Credentials
@@ -230,6 +225,6 @@ server.  The following two commands will perform those steps and can be repeated
 integration:
 
 ```bash
-LE_SAID=$(curl -s -X GET "http://localhost:5628/credentials/legal-entity?type=received" -H "accept: application/json" -H "Content-Type: application/json" | jq '.[0] | .sad.d')
-curl -X POST "http://localhost:5628/credentials/legal-entity/presentations" -H "accept: */*" -H "Content-Type: application/json" -d "{\"said\":${LE_SAID},\"recipient\":\"sally\",\"include\":true}"
+LE_SAID=`kli vc list --name legal-entity --alias qvi --said --schema EOhcE9MV90LRygJuYN1N0c5XXNFkzwFxUBfQ24v7qeEY`
+kli vc present --name issuer --alias issuer --said ${LE_SAID} --recipient sally --include
 ```

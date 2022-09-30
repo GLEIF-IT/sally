@@ -97,7 +97,7 @@ class CredentialIssuer:
             extVer.processEscrows()
             extCred.processEscrows()
 
-        assert creder.said == "EKivuNtimLda6lh5q_3M-cHVTi5q5PzESekY3UXtumiC"
+        assert creder.said == "ECXf4lLLZilz5I8oZTnvhoNVUrJ6Nj8CdugVYe7qZXRq"
 
         # Parse the credential and all its crypto goodness
         parsing.Parser().parse(ims=share_credential(self.extHab, self.extRgy, creder.said),
@@ -120,7 +120,7 @@ class CredentialIssuer:
         # Load rules section
         f = open(os.path.join(TEST_DIR, "rules.json"))
         r = f.read()
-        assert len(r) == 592
+        assert len(r) == 936
         rules = json.loads(r)
 
         qviCred = credentialing.Credentialer(hby=self.qviHby, rgy=self.qviRgy, registrar=qviRar, verifier=qviVer)
@@ -140,7 +140,7 @@ class CredentialIssuer:
             qviCred.processEscrows()
 
         self.lesaid = creder.said
-        assert self.lesaid == "EHZJZYIcygHHmCg7hpIQgObVvTgwu3U1EbmuytTZQhd7"
+        assert self.lesaid == "EDry2BSZ6VI08Il5tJghALNPxQO598Xjo4NNQj7uY9Y4"
         # Parse the Legal Entity credential and all its crypto goodness into Legal Entity
         parsing.Parser().parse(ims=share_credential(self.qviHab, self.qviRgy, creder.said),
                                kvy=leeKvy, tvy=leeVer.tvy, vry=leeVer)
@@ -179,7 +179,7 @@ class CredentialIssuer:
             leeVer.processEscrows()
             leeCred.processEscrows()
 
-        assert creder.said == "EGCAaoPqhlTXPfYTHUewb04RS7LhoUxYi0yj3bHMGL4P"
+        assert creder.said == "EDW2CKPNUU5cKgEoxhuMQsFpKRqJmsAmX5y2Z2VX6kYy"
         # Parse the AUTH credential and all its crypto goodness into QVI
         parsing.Parser().parse(ims=share_credential(self.leeHab, self.leeRgy, creder.said),
                                kvy=qviKvy, tvy=qviVer.tvy, vry=qviVer)
@@ -218,7 +218,7 @@ class CredentialIssuer:
             qviCred.processEscrows()
 
         self.oorsaid = creder.said
-        assert self.oorsaid == "EJ65WoEyv4ePUFQ1L-ARTqVQgMovm-UalucJZcfXG2zl"
+        assert self.oorsaid == "ENId_lQMJzyMki1wy9Vrfzn-DsBrYAcY2Gdv7qcUH-6n"
 
 
 def openHab(name, temp, salt):
