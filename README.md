@@ -228,3 +228,14 @@ integration:
 LE_SAID=`kli vc list --name legal-entity --alias qvi --said --schema EOhcE9MV90LRygJuYN1N0c5XXNFkzwFxUBfQ24v7qeEY`
 kli vc present --name issuer --alias issuer --said ${LE_SAID} --recipient sally --include
 ```
+
+### Revoking Credentials
+To revoke a credential fromt the command line, use the `kli vc revoke` command as follows.  Note the use of the `---send` 
+command line option to specify additional parties (AIDs or aliasa) to send the revocation events to:
+
+```bash
+kli vc revoke --name qvi --alias qvi --registry-name vLEI-qvi --said EHIlpLp8KgTAYjY3sEbCB3H5DST0dvdHNINfNY8MmodW --send sally
+```
+
+The SAID value (after the --said option) is the SAID of the credential to revoke.  Specifying the `sally` alias will result
+in the revocation events being sent to Sally which will process them and report to the web hook the revocation.
