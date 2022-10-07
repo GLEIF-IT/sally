@@ -178,7 +178,7 @@ representing the Legal Entity in an Official Role and issue them vLEI credentals
 for it to complete creating all identifiers and issuing all credentuals.
 
 ```bash
-./scripts/demo/vLEI/issue-xbrl-attestation.sh
+KERI_SCRIPT_DIR=./scripts KERI_DEMO_SCRIPT_DIR=./scripts/demo ./scripts/demo/vLEI/issue-xbrl-attestation.sh
 ```
 
 ### Sally
@@ -191,7 +191,7 @@ for `Sally`).  You will need to adjust the paths in the script to point to the c
 
 ```bash
 export KERIPY=../keripy
-kli init --name sally --nopasscode --config-dir ../keripy/scripts --config-file demo-witness-oobis-schema --salt 0ACDXyMzq1Nxc4OWxtbm9fle
+kli init --name sally --nopasscode --config-dir ${KERIPY}/scripts --config-file demo-witness-oobis-schema --salt 0ACDXyMzq1Nxc4OWxtbm9fle
 kli incept --name sally --alias sally --file ${KERIPY}/scripts/demo/data/trans-wits-sample.json
 kli oobi resolve --name sally --oobi-alias qvi --oobi http://127.0.0.1:5642/oobi/EHMnCf8_nIemuPx-cUHaDQq8zSnQIFAurdEpwHpNbnvX/witness/BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha
 ```
@@ -219,22 +219,23 @@ kli oobi resolve --name qvi --oobi-alias sally --oobi http://127.0.0.1:9723/oobi
 ```
 
 ### Presenting Credentials
-To present the Legal Entity credential created above, you need to use the REST API to retrieve the SAID of that credential
-from the Agent of the Legal Entity and then use the REST API to tell that agent to present the credential to Sally
+To present the Legal Entity credential created above, you need to use the `kli` to retrieve the SAID of that credential
+from the Agent of the Legal Entity and then use the `kli` to tell that agent to present the credential to Sally
 server.  The following two commands will perform those steps and can be repeated multiple times to test Sally 
 integration:
 
 ```bash
-LE_SAID=`kli vc list --name legal-entity --alias qvi --said --schema EOhcE9MV90LRygJuYN1N0c5XXNFkzwFxUBfQ24v7qeEY`
-kli vc present --name issuer --alias issuer --said ${LE_SAID} --recipient sally --include
+LE_SAID=`kli vc list --name legal-entity --alias legal-entity --said`
+kli vc present --name qvi --alias qvi --said ${LE_SAID} --recipient sally --include
 ```
 
 ### Revoking Credentials
-To revoke a credential fromt the command line, use the `kli vc revoke` command as follows.  Note the use of the `---send` 
+To revoke a credential from the command line, use the `kli vc revoke` command as follows.  Note the use of the `---send` 
 command line option to specify additional parties (AIDs or aliasa) to send the revocation events to:
 
 ```bash
-kli vc revoke --name qvi --alias qvi --registry-name vLEI-qvi --said EHIlpLp8KgTAYjY3sEbCB3H5DST0dvdHNINfNY8MmodW --send sally
+LE_SAID=`kli vc list --name legal-entity --alias legal-entity --said`
+kli vc revoke --name qvi --alias qvi --registry-name vLEI-qvi --said "$LE_SAID" --send sally
 ```
 
 The SAID value (after the --said option) is the SAID of the credential to revoke.  Specifying the `sally` alias will result
