@@ -5,9 +5,8 @@ sally.cli.commands module
 """
 import argparse
 
-from keri.app import keeping, habbing, directing, configing
+from keri.app import keeping, habbing, directing, configing, oobiing
 from keri.app.cli.common import existing
-from keri.end import ending
 
 from sally.core import serving
 
@@ -89,9 +88,9 @@ def launch(args, expire=0.0):
         hby = existing.setupHby(name=name, base=base, bran=bran)
 
     hbyDoer = habbing.HaberyDoer(habery=hby)  # setup doer
-    obl = ending.Oobiery(hby=hby)
+    obl = oobiing.Oobiery(hby=hby)
 
-    doers = [hbyDoer, obl]
+    doers = [hbyDoer, *obl.doers]
 
     doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth,
                            listen=listen, timeout=timeout, retry=retry)

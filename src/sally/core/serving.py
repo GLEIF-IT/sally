@@ -63,7 +63,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
 
     rvy = routing.Revery(db=hby.db)
 
-    exc = exchanging.Exchanger(hby=hby, handlers=[])
+    exc = exchanging.Exchanger(db=hby.db, handlers=[])
     kvy = eventing.Kevery(db=hby.db,
                           lax=True,
                           local=False,
