@@ -1,4 +1,5 @@
 #!/bin/bash
 
-kli init --name sally --nopasscode --config-dir ../keripy/scripts --config-file demo-witness-oobis-schema --salt 0ACDXyMzq1Nxc4OWxtbm9fle
-kli incept --name sally --alias sally --file ../keripy/scripts/demo/data/trans-wits-sample.json
+kli init --name sally --nopasscode --config-dir ./scripts --config-file vlei-sally-oobis-schema
+kli incept --name sally --alias sally --file ./scripts/data/sally.json
+
