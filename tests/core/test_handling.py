@@ -117,12 +117,12 @@ def test_communicator(seeder, mockHelpingNowUTC):
         assert data == {'action': 'iss',
                         'actor': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                         'data': {'LEI': '5493001KJTIIGC8Y1R17',
-                                 'credential': 'EDry2BSZ6VI08Il5tJghALNPxQO598Xjo4NNQj7uY9Y4',
+                                 'credential': 'EL5nGzlXb8DEjFh4pOZMd7F10NYfX7inyci3iw9juY6_',
                                  'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
                                  'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
-                                 'qviCredential': 'ECXf4lLLZilz5I8oZTnvhoNVUrJ6Nj8CdugVYe7qZXRq',
+                                 'qviCredential': 'EIbjVgfyrIj_jVjpgZXu2D-FFwWIc-pCFWnNd3F_vrD2',
                                  'recipient': 'EI0QTANut9IcXuPDbr7la4JJrjhMZ-EEk5q7Ahds8qBa',
-                                 'schema': 'EK0jwjJbtYLIynGtmXXLO5MGJ7BDuX2vr2_MhM9QjAxZ'}}
+                                 'schema': 'ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY'}}
 
         ims = issuing.share_credential(issr.qviHab, issr.qviRgy, issr.oorsaid)
         parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
@@ -166,14 +166,14 @@ def test_communicator(seeder, mockHelpingNowUTC):
         assert data == {'action': 'iss',
                         'actor': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                         'data': {'LEI': '5493001KJTIIGC8Y1R17',
-                                 'authCredential': 'EDW2CKPNUU5cKgEoxhuMQsFpKRqJmsAmX5y2Z2VX6kYy',
-                                 'credential': 'ENId_lQMJzyMki1wy9Vrfzn-DsBrYAcY2Gdv7qcUH-6n',
+                                 'authCredential': 'EM4Q5HNAiVZGqzPL1BJVGF0GCIUYng07kFIz49dC7n2c',
+                                 'credential': 'EHZ05NsGCdWNujHTK3FqyuPmR8qz04Q3xg3Hnz1hkPmm',
                                  'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
                                  'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                                  'officialRole': 'Baba Yaga',
                                  'personLegalName': 'John Wick',
                                  'recipient': 'EIf2fK7M9Mfd-Twv2Ig3n8PpGM_p976mciznHoknVPLs',
-                                 'schema': 'EIL-RWno8cEnkGTi9cr7-PFg_IXTPx9fZ0r9snFFZ0nm'}}
+                                 'schema': 'EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy'}}
 
 
 def launch_mock_server(port=5999, msgs=None):

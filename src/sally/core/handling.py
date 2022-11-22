@@ -22,10 +22,10 @@ from sally.core import httping
 
 logger = help.ogler.getLogger()
 
-QVI_SCHEMA = "ELqriXX1-lbV9zgXP4BXxqJlpZTgFchll3cyjaCyVKiz"
-LE_SCHEMA = "EK0jwjJbtYLIynGtmXXLO5MGJ7BDuX2vr2_MhM9QjAxZ"
-OOR_AUTH_SCHEMA = "EDqjl80uP0r_SNSp-yImpLGglTEbOwgO77wsOPjyRVKy"
-OOR_SCHEMA = "EIL-RWno8cEnkGTi9cr7-PFg_IXTPx9fZ0r9snFFZ0nm"
+QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
+LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
+OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
+OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
 
 def loadHandlers(cdb, exc):
