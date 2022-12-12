@@ -170,8 +170,10 @@ def test_communicator(seeder, mockHelpingNowUTC):
                                  'credential': 'EHZ05NsGCdWNujHTK3FqyuPmR8qz04Q3xg3Hnz1hkPmm',
                                  'issueTimestamp': '2021-01-01T00:00:00.000000+00:00',
                                  'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
+                                 'legalEntityCredential': 'EL5nGzlXb8DEjFh4pOZMd7F10NYfX7inyci3iw9juY6_',
                                  'officialRole': 'Baba Yaga',
                                  'personLegalName': 'John Wick',
+                                 'qviCredential': 'EIbjVgfyrIj_jVjpgZXu2D-FFwWIc-pCFWnNd3F_vrD2',
                                  'recipient': 'EIf2fK7M9Mfd-Twv2Ig3n8PpGM_p976mciznHoknVPLs',
                                  'schema': 'EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy'}}
 
