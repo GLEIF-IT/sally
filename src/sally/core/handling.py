@@ -213,7 +213,7 @@ class Communicator(doing.DoDoer):
                     elif creder.schema == LE_SCHEMA:
                         data = self.entityPayload(creder)
                     elif creder.schema == OOR_SCHEMA:
-                        data = self.roleCredentialPayload(creder)
+                        data = self.roleCredentialPayload(self.reger, creder)
                     else:
                         raise kering.ValidationError("this will never happen because all credentials that get here are"
                                                      " valid")
@@ -439,10 +439,18 @@ class Communicator(doing.DoDoer):
         return data
 
     @staticmethod
-    def roleCredentialPayload(creder):
+    def roleCredentialPayload(reger, creder):
         a = creder.crd["a"]
         edges = creder.chains
         asaid = edges["auth"]["n"]
+
+        auth = reger.creds.get(asaid)
+        aedges = auth.chains
+        lesaid = aedges["le"]["n"]
+        qvi = reger.creds.get(lesaid)
+        qedges = qvi.chains
+        qsaid = qedges["qvi"]["n"]
+
         data = dict(
             schema=creder.schema,
             issuer=creder.issuer,
@@ -450,6 +458,8 @@ class Communicator(doing.DoDoer):
             credential=creder.said,
             recipient=a["i"],
             authCredential=asaid,
+            qviCredential=qsaid,
+            legalEntityCredential=lesaid,
             LEI=a["LEI"],
             personLegalName=a["personLegalName"],
             officialRole=a["officialRole"]
