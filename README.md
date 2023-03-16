@@ -1,7 +1,8 @@
-# SALLY
-vLEI Audit Reporting Agent
+# SALLY | Abydos Gatekeeper
 
-The Sally vLEI Audit Reporting Agent receives presentations of credentials and notices of revocation, verifies the
+The vLEI Audit Reporting Agent repurposed as the Abydos Gatekeeper Agent.
+
+The Sally Abydos Gatekeeper Agent receives presentations of credentials and notices of revocation, verifies the
 structure and cryptographic integrity of the credential or revocation event and performs a POST to the configured 
 webhook URL.  
 
@@ -16,92 +17,142 @@ All web hook POSTs will have the following header fields:
 }
 ```
 
-With Sally resource being the SAID of one of the following credentials: 
+With the value of the Sally-Resource header being the SAID of one of the following credential schema types: 
 
-| Schema | Type |
-|-----|-------|
-| EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw | Qualified vLEI Issuer vLEI Credential |
-| EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs | Legal Entity vLEI Credential |
-| E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0 | Official Organization Role vLEI Credential |
+| Schema                                        | Type                   |
+|-----------------------------------------------|------------------------|
+| EIxAox3KEhiQ_yCwXWeriQ3ruPWbgK94NDDkHAZCuP9l  | TreasureHuntingJourney |
+| ELc8tMg_hhsAPfVbjUBBC-giEy5440oSb9EzFBZdAxHD  | JourneyMarkRequest     |
+| EBEefH4LNQswHSrXanb-3GbjCZK7I_UCL6BdD-zwJ4my  | JourneyMark            | 
+| EEq0AkHV-i5-aCc1JMBGsd7G85HlBzI3BfyuS5lHOGjr  | JourneyCharter         |
 
 
 The body of the POST to the web hook URL will be one of the following depending on event type (presentation or revocation)
  and credential involved.
 
 ### Presentation
-The presentation API will be a POST to the configured web hook URL and will contain one of the following 3 payloads depending on the type of credential being presented.
+The presentation API will be a POST to the configured web hook URL and will contain one of the following 4 payload\
+shapes depending on the type of credential being presented.
 
-**QVI Payload**
+**Treasure Hunting Journey Payload**
 ```json
 {
- "action": "iss",
- "actor": "EPqeYsDPrYdb9HxJ0Yk9gH0VfspezBVLjxAzjfTGsgkY",
- "data": {
-  "schema": "EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw",
-  "issuer": "EPqeYsDPrYdb9HxJ0Yk9gH0VfspezBVLjxAzjfTGsgkY",
-  "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
-  "credential": "EnR0SI1z7gwUYvnRUSwSLvP8O5oWZ_uzuFKSQGmanR9w",
-  "recipient": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-  "LEI": "506700GE1G29325QX363"
- }
+  "action": "iss",
+  "actor": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+  "data": {
+    "schema": "EIxAox3KEhiQ_yCwXWeriQ3ruPWbgK94NDDkHAZCuP9l",
+    "issuer": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+    "issueTimestamp": "2023-03-16T00:22:51.571027+00:00",
+    "credential": "EJQMx6eOAMGQ01w37bsJNDvo6rHhMysmidwJxD9ti1bu",
+    "recipient": "EJS0-vv_OPAQCdJLmkd5dT0EW-mOfhn_Cje4yzRjTv8q",
+    "destination": "Osireion",
+    "treasureSplit": "50/50",
+    "partyThreshold": 2,
+    "journeyEndorser": "Ramiel"
+  }
 }
 ```
 
-**Legal Entity Payload**
+**Journey Mark Request**
 ```json
 {
-   "action": "iss",
-   "actor": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-   "data": { 
-       "schema": "EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs",
-       "issuer": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-       "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
-       "credential": "EHcRiSahoTAKNWZRLNN7MGtUfbMJgUldvPjpc3NCWxsQ",
-       "recipient": "EkjlNRao4AZEmasi2jb9E3u4xnLD5Oe2qkHS_JWCIq-U",
-       "qviCredential": "EnR0SI1z7gwUYvnRUSwSLvP8O5oWZ_uzuFKSQGmanR9w",
-       "LEI": "506700GE1G29325QX363"
-    }
+  "action": "iss",
+  "actor": "EJS0-vv_OPAQCdJLmkd5dT0EW-mOfhn_Cje4yzRjTv8q",
+  "data": {
+    "schema": "ELc8tMg_hhsAPfVbjUBBC-giEy5440oSb9EzFBZdAxHD",
+    "issuer": "EJS0-vv_OPAQCdJLmkd5dT0EW-mOfhn_Cje4yzRjTv8q",
+    "issueTimestamp": "2023-03-16T00:22:51.571027+00:00",
+    "credential": "EC2KirxTYEnw6IJFJAVXSeynOjZRFBpcDL-oqIVgQnP6",
+    "recipient": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+    "requester": {
+      "firstName": "",
+      "lastName": "",
+      "nickname": ""
+    },
+    "desiredPartySize": 2,
+    "desiredSplit": 50.00,
+    "journeyCredential": "EJQMx6eOAMGQ01w37bsJNDvo6rHhMysmidwJxD9ti1bu"
+  }
 }
 ```
 
-**Official Organization Role Payload**
+**Journey Mark**
 ```json
 {
-   "action": "iss",
-   "actor": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-   "data": { 
-       "schema": "E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0",
-       "issuer": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
-       "issueTimestamp": "2022-06-24T14:19:19.591808+00:00",
-       "credential": "EecctjiS0dFyohgz0GBC6O9NlJJ7-pSJ3U5ZFEvzm48A",
-       "recipient": "ECRi-yUy_bq2YrgTKI-VbG1MdvWsNstdyjvfx1ZEHJOY",
-       "legalEntityCredential": "EHcRiSahoTAKNWZRLNN7MGtUfbMJgUldvPjpc3NCWxsQ"
-       "qviCredential": "EnR0SI1z7gwUYvnRUSwSLvP8O5oWZ_uzuFKSQGmanR9w",
-       "LEI": "506700GE1G29325QX363" ,
-       "personLegalName": "Stephan Wolf",
-       "officialRole": "Chief Executive Officer"
-    }
+  "action": "iss",
+  "actor": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+  "data": {
+    "schema": "EBEefH4LNQswHSrXanb-3GbjCZK7I_UCL6BdD-zwJ4my",
+    "issuer": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+    "issueTimestamp": "2023-03-16T00:22:51.571027+00:00",
+    "credential": "EPK9UORy9h29vJ4yiFVU5d_U80-6qbK3OwUJSYj5rb7h",
+    "recipient": "EJS0-vv_OPAQCdJLmkd5dT0EW-mOfhn_Cje4yzRjTv8q",
+    "journeyDestination": "Osireion",
+    "gatekeeper": "Zaqiel",
+    "negotiatedSplit": 50.00,
+    "journeyCredential": "EJQMx6eOAMGQ01w37bsJNDvo6rHhMysmidwJxD9ti1bu"
+  }
+}
+```
+
+**Journey Charter**
+```json
+{
+  "action": "iss",
+  "actor": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+  "data": {
+    "schema": "EEq0AkHV-i5-aCc1JMBGsd7G85HlBzI3BfyuS5lHOGjr",
+    "issuer": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
+    "issueTimestamp": "2023-03-16T00:22:51.571027+00:00",
+    "credential": "ECn2kLVj_g4JYISLSXJ1YpvC8qW6YljE63dcc85ElAd7",
+    "recipient": "EJS0-vv_OPAQCdJLmkd5dT0EW-mOfhn_Cje4yzRjTv8q",
+    "partySize": 2,
+    "authorizerName": "Zaqiel",
+    "journeyCredential": "EJQMx6eOAMGQ01w37bsJNDvo6rHhMysmidwJxD9ti1bu",
+    "markCredential": "EPK9UORy9h29vJ4yiFVU5d_U80-6qbK3OwUJSYj5rb7h",
+    "destination": "Osireion",
+    "treasureSplit": "50/50",
+    "journeyEndorser": "Ramiel",
+    "firstName": "Richard",
+    "lastName": "Ayris",
+    "nickname": "Dunkie"
+  }
 }
 ```
 
 **Presentation Payload Field Key**
 The following table contains a description for every field in all the credential presentation payloads defined above:
 
-| Field Label | Description |
-|----|----|
-| action | the action that triggered the web hook call.  Value will be "iss" for issue presentations |
-| actor | The AID of the presenter of the credential |
-| data | Attributes specific to the credential being presentedl |
-| data -> schema | SAID of the schema of the credential that was presented |
-| data -> issuer | Issuer of the credential presented |
-| data -> issueTimestamp | Issuance timestamp for the credential |
-| data -> credential | SAID of credential being presented |
-| data -> recipient | AID of the holder of the credential |
-| data -> qviCredential | SAID of a chained QVI credential (for LE and OOR credentials) |
-| data -> legalEntityCredential | SAID of a chained legal entity credential (for OOR credentials) |
-| data -> LEI | Legal Entity Identifier |
-| data -> personLegalName | Person Legal Name data field of the OOR credential |
-| data -> officialRole | Official Role Name data field of the OOR credential |
+| Field Label                    | Description                                                                                        |
+|--------------------------------|----------------------------------------------------------------------------------------------------|
+| action                         | the action that triggered the web hook call.  Value will be "iss" for issue presentations          |
+| actor                          | The AID of the presenter of the credential                                                         |
+| data                           | Attributes specific to the credential being presented                                              |
+| data -> schema                 | SAID of the schema of the credential that was presented                                            |
+| data -> issuer                 | Issuer of the credential presented                                                                 |
+| data -> issueTimestamp         | Issuance timestamp for the credential                                                              |
+| data -> credential             | SAID of credential being presented                                                                 |
+| data -> recipient              | AID of the holder of the credential                                                                |
+| data -> destination            | The destination of the treasure hunting journey.                                                   |
+| data -> journeyDestination     | Same as data -> destination                                                                        |
+| data -> treasureSplit          | The percentage split of the treasure for each party member.                                        |
+| data -> partyThreshold         | The party count at which the journey can be chartered.                                             |
+| data -> journeyEndorser        | The name of the official ATHENA member endorsing the journey.                                      |
+| data -> requester              | Data of the explorer making a journey request to ATHENA.                                           |
+| data -> requester -> firstName | The first name of the requester.                                                                   |
+| data -> firstName              | Same as data -> requester -> firstName                                                             |
+| data -> requester -> lastName  | The last name of the requester.                                                                    |
+| data -> lastName               | Same as data -> requester -> lastName                                                              |
+| data -> requester -> nickname  | The nickname of the requester to be used at all times unless otherwise required.                   |
+| data -> nickname               | Same as data -> requester -> nickname                                                              |
+| data -> desiredPartySize       | The desired party count for the explorer making the request. Helps with matchmaking.               |
+| data -> desiredSplit           | The desired treasure percentage split for the explorer making the request. Helps with matchmaking. |
+| data -> journeyCredential      | The SAID of the journey credential chained to the credential being presented.                      |
+| data -> gatekeeper             | The ATHENA member at the journey site to verify the Journey Charter.                               |
+| data -> negotiatedSplit        | The actual negotiated split after matchmaking.                                                     |
+| data -> authorizerName         | The ATHENA member authorizing a JourneyCharter.                                                    |
+| data -> markCredential         | The SAID of the JourneyMark credential chained to the credential being presented.                  |
+
 
 
 ### Revocation
@@ -111,11 +162,11 @@ All revocation web hook requests will have the same format as follows:
 ```json
 {
    "action": "rev",
-   "actor": "EGhyphY8VJwvliB0ZeX6-8kkyS9L_eGZE-TkPifM29HY",
+   "actor": "EIaJ5gpHSL9nl1XIWDkfMth1uxbD-AfLkqdiZL6S7HkZ",
    "data": { 
-       "schema": "EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw",
-       "credential": "EZBfSGG5k1CZYk1QH3GXFPtEwLHf0H06zuDUEJRyar1E",
-       "revocationTimestamp": "2022-06-24T14:19:19.591808+00:00"
+       "schema": "EEq0AkHV-i5-aCc1JMBGsd7G85HlBzI3BfyuS5lHOGjr",
+       "credential": "ECn2kLVj_g4JYISLSXJ1YpvC8qW6YljE63dcc85ElAd7",
+       "revocationTimestamp": "2023-03-31T00:22:51.571027+00:00"
     }
 }
 ```
@@ -123,36 +174,40 @@ All revocation web hook requests will have the same format as follows:
 **Revocation Payload Field Key**
 The following table contains a description for every field in all the credential revocation payloads defined above:
 
-| Field Label | Description |
-|----|----|
-| action | the action that triggered the web hook call.  Value will be "rev" for revocation presentations |
-| actor | The AID of the presenter of the revocation |
-| data | Attributes specific to the credential being presentedl |
-| data -> schema | SAID of the schema of the credential that was revoked |
-| data -> revocationTimestamp | Revocation timestamp for the credential |
-| data -> credential | SAID of credential being revoked |
+| Field Label                 | Description                                                                                    |
+|-----------------------------|------------------------------------------------------------------------------------------------|
+| action                      | the action that triggered the web hook call.  Value will be "rev" for revocation presentations |
+| actor                       | The AID of the presenter of the revocation                                                     |
+| data                        | Attributes specific to the credential being presentedl                                         |
+| data -> schema              | SAID of the schema of the credential that was revoked                                          |
+| data -> revocationTimestamp | Revocation timestamp for the credential                                                        |
+| data -> credential          | SAID of credential being revoked                                                               |
 
 
 ## Running
 
-To properly test the Sally server, one needs to check out the `main` branch of `http://github.com/WebOfTrust/vLEI`, 
-the `development` branch of `http://github.com/WebOfTrust/keripy` and the dev branch of this repo.  All repositories 
-require python `3.10.4` to run as well as a local installation of `libsodium`.  We recommend using a virtual environment
-technology(`pipenv` for example) for each repository.  Finally, many of the bash commands and shell scripts require an
-installation of `jq` running locally.
+To properly test the Sally Abydos Gatekeeper server, one needs to check out the `master` branch of `https://github.com/TetraVeda/abydos-tutorial`, 
+and follow the instructions in the README there.\
+All repositories require python `3.10.4` to run as well as a local installation of `libsodium`.\
+We recommend using a virtual environment technology(`pipenv` for example) for each repository.\
+Finally, many of the bash commands and shell scripts require an installation of `jq` running locally.
 
 
-### vLEI
+### Abydos Tutorial Workflow
 
-The vLEI server provides endpoints for Data OOBIs for the credential schema for the vLEI ecosystem.  To run the server,
-you must run:
+The Abydos Tutorial provides a script called `workflow.sh` you can run to start the entire network up and to initialize
+all keystores.
 
 ```bash
-pip install -r requirements.txt
-vLEI-server -s schema/acdc -c samples/acdc -o samples/oobis
+# from within the root directory of abydos-tutorial
+./workflow.sh
 ```
 
-And leave the server running to as is accessible to Sally and the agents running from KERIpy.
+Leave the script running to be accessible to Sally.
+
+The workflow script starts the following components for you:
+
+TODO: Finish writing the rest of the readme
 
 ### KERIpy
 
