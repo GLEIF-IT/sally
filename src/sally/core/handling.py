@@ -7,26 +7,27 @@ EXN Message handling
 """
 import datetime
 import json
-from urllib import parse
 from base64 import urlsafe_b64encode as encodeB64
+from collections import namedtuple
+from urllib import parse
 
 from hio.base import doing
 from hio.core import http
 from hio.help import decking, Hict
+from keri import help, kering
 from keri.core import coring
 from keri.end import ending
 from keri.help import helping
-from keri import help, kering
 
 from sally.core import httping
 
 logger = help.ogler.getLogger()
-
 QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
 LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
 OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
 OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
+CredentialMapping = namedtuple('CredentialMapping', 'credential_type said')
 
 def loadHandlers(cdb, exc):
     """ Load handlers for the peer-to-peer challenge response protocol
@@ -103,16 +104,22 @@ class PresentationProofHandler(doing.Doer):
             yield self.tock
 
 
+JOURNEY_TYPE = 'TreasureHuntingJourney'
+REQUEST_TYPE = 'JourneyMarkRequest'
+MARK_TYPE = 'JourneyMark'
+CHARTER_TYPE = 'JourneyCharter'
+
+
 class Communicator(doing.DoDoer):
     """
-    Communicator is responsible for comminucating the receipt and successful verification
+    Communicator is responsible for communicating the receipt and successful verification
     of credential presentation and revocation messages from external third parties via
     web hook API calls.
 
 
     """
 
-    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0):
+    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0, mappings=[]):
         """
 
         Create a communicator capable of persistent processing of messages and performing
@@ -138,6 +145,27 @@ class Communicator(doing.DoDoer):
         self.timeout = timeout
         self.retry = retry
         self.clients = dict()
+        self.mappings: list[CredentialMapping] = mappings
+        for mapping in self.mappings:
+            print(f'Configured mapping of | {mapping.said} | {mapping.credential_type}')
+        self.schema_handlers: dict = {
+            JOURNEY_TYPE: self.validateJourney,
+            REQUEST_TYPE: self.validateJourneyMarkRequest,
+            MARK_TYPE: self.validateJourneyMark,
+            CHARTER_TYPE: self.validateJourneyCharter,
+            'QualifiedvLEIIssuervLEICredential': self.validateQVIChain,
+            'LegalEntityvLEICredential': self.validateLegalEntity,
+            'LegalEntityOfficialOrganizationalRolevLEICredential': self.validateOfficialRole
+        }
+        self.payload_handlers: dict = {
+            JOURNEY_TYPE: self.treasureHuntingJourneyPayload,
+            REQUEST_TYPE: self.journeyMarkRequestPayload,
+            MARK_TYPE: self.journeyMarkPayload,
+            CHARTER_TYPE: self.journeyCharterPayload,
+            'QualifiedvLEIIssuervLEICredential': self.qviPayload,
+            'LegalEntityvLEICredential': self.entityPayload,
+            'LegalEntityOfficialOrganizationalRolevLEICredential': self.roleCredentialPayload
+        }
 
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
 
@@ -157,16 +185,17 @@ class Communicator(doing.DoDoer):
                     regk = creder.status
                     state = self.reger.tevers[regk].vcState(creder.said)
                     if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
+                        self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
-                    if creder.schema == QVI_SCHEMA:
-                        self.validateQualifiedvLEIIssuer(creder)
-                    elif creder.schema == LE_SCHEMA:
-                        self.validateLegalEntity(creder)
-                    elif creder.schema == OOR_SCHEMA:
-                        self.validateOfficialRole(creder)
+
+                    handler_type = self.resolve_said_to_type(creder.schema)
+                    if handler_type in self.schema_handlers.keys():
+                        handler = self.schema_handlers[handler_type]
+                        handler(creder)
                     else:
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
+
                 except kering.ValidationError as ex:
                     print(ex)
                     logger.error(f"credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
@@ -174,6 +203,18 @@ class Communicator(doing.DoDoer):
                     self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
                 finally:
                     self.cdb.iss.rem(keys=(said,))
+
+    def resolve_said_to_type(self, schema_said):
+        for mapping in self.mappings:
+            if mapping.said == schema_said:
+                return mapping.credential_type
+        raise kering.ValidationError(f"no mapping found for schema {schema_said}")
+
+    def resolve_type_to_said(self, credential_type):
+        for mapping in self.mappings:
+            if mapping.credential_type == credential_type:
+                return mapping.said
+        raise kering.ValidationError(f"no mapping found for schema {credential_type}")
 
     def processRevocations(self):
 
@@ -208,15 +249,13 @@ class Communicator(doing.DoDoer):
                 resource = creder.schema
                 actor = creder.issuer
                 if action == "iss":  # presentation of issued credential
-                    if creder.schema == QVI_SCHEMA:
-                        data = self.qviPayload(creder)
-                    elif creder.schema == LE_SCHEMA:
-                        data = self.entityPayload(creder)
-                    elif creder.schema == OOR_SCHEMA:
-                        data = self.roleCredentialPayload(self.reger, creder)
+                    handler_type = self.resolve_said_to_type(creder.schema)
+                    if handler_type in self.payload_handlers.keys():
+                        handler = self.payload_handlers[handler_type]
+                        data = handler(creder, self.reger)
                     else:
-                        raise kering.ValidationError("this will never happen because all credentials that get here are"
-                                                     " valid")
+                        raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
+                                                     f" {creder.schema} from issuer {creder.issuer}")
                 else:  # revocation of credential
                     data = self.revokePayload(creder)
 
@@ -340,6 +379,60 @@ class Communicator(doing.DoDoer):
 
         self.clients[said] = (client, clientDoer)
 
+    def validateJourney(self, creder):
+        journey_said = self.resolve_type_to_said(JOURNEY_TYPE)
+        if creder.schema != journey_said:
+            raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {JOURNEY_TYPE} '
+                                         f'credential SAID: {journey_said}')
+
+    def validateJourneyMarkRequest(self, creder):
+        request_said = self.resolve_type_to_said(REQUEST_TYPE)
+        if creder.schema != request_said:
+            raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {REQUEST_TYPE} '
+                                         f'credential SAID: {request_said}')
+        self.validateJourneyChain(creder)
+
+    def validateJourneyChain(self, creder):
+        edges = creder.chains
+        journey_said = edges["journey"]["n"]
+        journey_creder = self.reger.creds.get(journey_said)
+        if journey_creder is None:
+            raise kering.ValidationError(f'{JOURNEY_TYPE} credential not found for {creder.said}')
+        self.validateJourney(journey_creder)
+
+    def validateJourneyMark(self, creder):
+        request_said = self.resolve_type_to_said(MARK_TYPE)
+        if creder.schema != request_said:
+            raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {MARK_TYPE} '
+                                         f'credential SAID: {request_said}')
+        self.validateRequestChain(creder)
+
+    def validateRequestChain(self, creder):
+        edges = creder.chains
+        request_said = edges["request"]["n"]
+        request_creder = self.reger.creds.get(request_said)
+        if request_creder is None:
+            raise kering.ValidationError(f'{REQUEST_TYPE} credential not found for {creder.said}')
+        self.validateJourneyMarkRequest(request_creder)
+
+    def validateJourneyCharter(self, creder):
+        request_said = self.resolve_type_to_said(CHARTER_TYPE)
+        if creder.schema != request_said:
+            raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {MARK_TYPE} '
+                                         f'credential SAID: {request_said}')
+        print('validating journey charter')
+        self.validateMarkChain(creder)
+        self.validateJourneyChain(creder)
+
+    def validateMarkChain(self, creder):
+        edges = creder.chains
+        mark_said = edges["mark"]["n"]
+        mark_creder = self.reger.creds.get(mark_said)
+        if mark_creder is None:
+            raise kering.ValidationError(f'{MARK_TYPE} credential not found for {creder.said}')
+        # TODO add attribute validation like in validateOfficialRole
+        self.validateJourneyMark(mark_creder)
+
     def validateQualifiedvLEIIssuer(self, creder):
         """ Validate issuer of QVI against known valid issuer
 
@@ -408,7 +501,104 @@ class Communicator(doing.DoDoer):
         self.validateQualifiedvLEIIssuer(qcreder)
 
     @staticmethod
-    def qviPayload(creder):
+    def treasureHuntingJourneyPayload(creder, reger):
+        a = creder.crd["a"]
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            destination=a["destination"],
+            treasureSplit=a["treasureSplit"],
+            partyThreshold=a["partyThreshold"],
+            journeyEndorser=a["journeyEndorser"]
+        )
+
+        return data
+
+    @staticmethod
+    def journeyMarkRequestPayload(creder, reger):
+        a = creder.crd["a"]
+        requester_data = a["requester"]
+        requester = {
+            'firstName': requester_data["firstName"],
+            'lastName': requester_data["lastName"],
+            'nickname': requester_data["nickname"]
+        }
+        edges = creder.chains
+        journeySaid = edges["journey"]["n"]
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            requester=requester,
+            desiredPartySize=a["desiredPartySize"],
+            desiredSplit=a["desiredSplit"],
+            journeyCredential=journeySaid
+        )
+
+        return data
+
+    @staticmethod
+    def journeyMarkPayload(creder, reger):
+        a = creder.crd["a"]
+        # TODO add in journey credential SAID through reger lookup
+        edges = a.chains
+        journeySaid = edges["journey"]["n"]
+
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            journeyDestination=a["journeyDestination"],
+            gatekeeper=a["gatekeeper"],
+            negotiatedSplit=a["negotiatedSplit"],
+            journeyCredential=journeySaid
+        )
+
+        return data
+
+    @staticmethod
+    def journeyCharterPayload(creder, reger):
+        a = creder.crd["a"]
+        edges = creder.chains
+        journeySaid = edges["journey"]["n"]
+        journey = reger.creds.get(journeySaid)
+        jatts = journey.crd["a"]
+
+        markSaid = edges["mark"]["n"]
+        mark = reger.creds.get(markSaid)
+        requestSaid = mark.chains["request"]["n"]
+        request = reger.creds.get(requestSaid)
+        ratts = request.crd["a"]
+
+        data = dict(
+            schema=creder.schema,
+            issuer=creder.issuer,
+            issueTimestamp=a["dt"],
+            credential=creder.said,
+            recipient=a["i"],
+            partySize=a["partySize"],
+            authorizerName=a["authorizerName"],
+            journeyCredential=journeySaid,
+            markCredential=markSaid,
+            destination=jatts["destination"],
+            treasureSplit=jatts["treasureSplit"],
+            journeyEndorser=jatts["journeyEndorser"],
+            firstName=ratts["requester"]["firstName"],
+            lastName=ratts["requester"]["lastName"],
+            nickname=ratts["requester"]["nickname"]
+        )
+
+        return data
+
+    @staticmethod
+    def qviPayload(creder, reger):
         a = creder.crd["a"]
         data = dict(
             schema=creder.schema,
@@ -422,7 +612,7 @@ class Communicator(doing.DoDoer):
         return data
 
     @staticmethod
-    def entityPayload(creder):
+    def entityPayload(creder, reger):
         a = creder.crd["a"]
         edges = creder.chains
         qsaid = edges["qvi"]["n"]
@@ -439,7 +629,7 @@ class Communicator(doing.DoDoer):
         return data
 
     @staticmethod
-    def roleCredentialPayload(reger, creder):
+    def roleCredentialPayload(creder, reger):
         a = creder.crd["a"]
         edges = creder.chains
         asaid = edges["auth"]["n"]

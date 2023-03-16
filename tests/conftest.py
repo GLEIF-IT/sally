@@ -81,6 +81,9 @@ class DbSeed:
             b'"additionalProperties":false,"required":["d","usageDisclaimer","issuanceDisclaimer"]}]}},'
             b'"additionalProperties":false,"required":["i","ri","s","d"]}')
 
+        print('printing credential 1')
+        print(str(raw))
+
         schemer = scheming.Schemer(raw=raw)
         db.schema.pin(schemer.said, schemer)
 

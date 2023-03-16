@@ -152,11 +152,11 @@ pip install -r requirements.txt
 vLEI-server -s schema/acdc -c samples/acdc -o samples/oobis
 ```
 
-And leave the server running to is is accessible to Sally and the agents running from KERIpy.
+And leave the server running to as is accessible to Sally and the agents running from KERIpy.
 
 ### KERIpy
 
-From KERIpy you will run 1 server that provide witnesses.  In addition you will run a shell script which uses `kli` to
+From KERIpy you will run 1 server that provide witnesses.  In addition, you will run a shell script which uses `kli` to
 execute KERI commands to create identifiers and issue credentials.
 
 First, to install all required dependencies run:
@@ -231,7 +231,7 @@ kli vc present --name qvi --alias qvi --said ${LE_SAID} --recipient sally --incl
 
 ### Revoking Credentials
 To revoke a credential from the command line, use the `kli vc revoke` command as follows.  Note the use of the `---send` 
-command line option to specify additional parties (AIDs or aliasa) to send the revocation events to:
+command line option to specify additional parties (AIDs or aliases) to send the revocation events to:
 
 ```bash
 LE_SAID=`kli vc list --name legal-entity --alias legal-entity --said`

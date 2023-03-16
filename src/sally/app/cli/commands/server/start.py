@@ -4,11 +4,13 @@ sally.cli.commands module
 
 """
 import argparse
+import json
 
 from keri.app import keeping, habbing, directing, configing, oobiing
 from keri.app.cli.common import existing
 
 from sally.core import serving
+from sally.core.serving import CredentialMapping
 
 parser = argparse.ArgumentParser(description='Launch SALLY micro-service')
 parser.set_defaults(handler=lambda args: launch(args),
@@ -48,6 +50,9 @@ parser.add_argument('--config-file',
 parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
                     required=True)
 parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store_true")
+parser.add_argument('--schema-mappings', '-s', dest="schemaMappings",
+                    help='JSON file mapping schema SAIDs to type names to select validators and payload handlers.',
+                    required=True)
 
 
 def launch(args, expire=0.0):
@@ -57,6 +62,9 @@ def launch(args, expire=0.0):
     bran = args.bran
     httpPort = args.http
     auth = args.auth
+    mappings_path = args.schemaMappings
+    with open(mappings_path, 'r') as mappings_file:
+        mappings = read_mappings(json.load(mappings_file))
 
     listen = args.listen
     timeout = args.escrow_timeout
@@ -93,7 +101,11 @@ def launch(args, expire=0.0):
     doers = [hbyDoer, *obl.doers]
 
     doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth,
-                           listen=listen, timeout=timeout, retry=retry)
+                           listen=listen, timeout=timeout, retry=retry, mappings=mappings)
 
     print(f"Sally Server listening on {httpPort}")
     directing.runController(doers=doers, expire=expire)
+
+
+def read_mappings(json: dict) -> list[CredentialMapping]:
+    return [CredentialMapping(**k) for k in json["mappings"]]

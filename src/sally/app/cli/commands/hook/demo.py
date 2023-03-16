@@ -4,15 +4,12 @@ sally.cli.commands module
 
 """
 import argparse
+import datetime
+import json
 
 import falcon
-from hio.base import doing
 from hio.core import http
-from keri.app import keeping, habbing, directing, configing
-from keri.app.cli.common import existing
-from keri.end import ending
-
-from sally.core import serving
+from keri.app import directing
 
 parser = argparse.ArgumentParser(description='Launch SALLY sample web hook server')
 parser.set_defaults(handler=lambda args: launch(args),
@@ -24,7 +21,8 @@ parser.add_argument('-p', '--http',
 
 
 def launch(args, expire=0.0):
-    httpPort = args.http
+    httpPort = int(args.http)
+    print(f'launching on port {httpPort}')
 
     app = falcon.App(
         middleware=falcon.CORSMiddleware(
@@ -53,13 +51,25 @@ class Listener:
             rep: falcon.Response HTTP response
 
         """
-        print("** HEADERS **")
-        print(req.headers)
-        print("*************")
-
-        print("**** BODY ****")
+        print('received request')
         body = req.get_media()
-        print(body)
+        match body['action']:
+            case 'iss':
+                print(f"Valid Credential. Validated at {datetime.datetime.now()}")
+                print("Credential Message")
+                print(body['data'])
+                print("")
+                self.debug_request(req, body)
+            case 'rev':
+                print(f"Invalid credential. Revoked on: {body['data']['revocationTimestamp']}")
+                self.debug_request(req, body)
+            case _:
+                print('Unexpected action type')
+
+    def debug_request(self, req, body):
+        print("*** HEADERS **")
+        print(json.dumps(req.headers, indent=2))
         print("**************")
-
-
+        print("**** BODY ****")
+        print(json.dumps(body, indent=2))
+        print("**************")
