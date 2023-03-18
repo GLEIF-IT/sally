@@ -420,7 +420,6 @@ class Communicator(doing.DoDoer):
         if creder.schema != request_said:
             raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {MARK_TYPE} '
                                          f'credential SAID: {request_said}')
-        print('validating journey charter')
         self.validateMarkChain(creder)
         self.validateJourneyChain(creder)
 
