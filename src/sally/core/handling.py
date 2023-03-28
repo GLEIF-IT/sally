@@ -384,6 +384,8 @@ class Communicator(doing.DoDoer):
         if creder.schema != journey_said:
             raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {JOURNEY_TYPE} '
                                          f'credential SAID: {journey_said}')
+        if not creder.issuer == self.auth:
+            raise kering.ValidationError("TreasureHuntingJourney credential not issued by known valid issuer")
 
     def validateJourneyMarkRequest(self, creder):
         request_said = self.resolve_type_to_said(REQUEST_TYPE)
@@ -420,6 +422,8 @@ class Communicator(doing.DoDoer):
         if creder.schema != request_said:
             raise kering.ValidationError(f'Invalid schema SAID {creder.schema} for {MARK_TYPE} '
                                          f'credential SAID: {request_said}')
+        if not creder.issuer == self.auth:
+            raise kering.ValidationError("JourneyCharter credential not issued by known valid issuer")
         self.validateMarkChain(creder)
         self.validateJourneyChain(creder)
 
