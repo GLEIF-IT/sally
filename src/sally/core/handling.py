@@ -152,19 +152,13 @@ class Communicator(doing.DoDoer):
             JOURNEY_TYPE: self.validateJourney,
             REQUEST_TYPE: self.validateJourneyMarkRequest,
             MARK_TYPE: self.validateJourneyMark,
-            CHARTER_TYPE: self.validateJourneyCharter,
-            'QualifiedvLEIIssuervLEICredential': self.validateQVIChain,
-            'LegalEntityvLEICredential': self.validateLegalEntity,
-            'LegalEntityOfficialOrganizationalRolevLEICredential': self.validateOfficialRole
+            CHARTER_TYPE: self.validateJourneyCharter
         }
         self.payload_handlers: dict = {
             JOURNEY_TYPE: self.treasureHuntingJourneyPayload,
             REQUEST_TYPE: self.journeyMarkRequestPayload,
             MARK_TYPE: self.journeyMarkPayload,
-            CHARTER_TYPE: self.journeyCharterPayload,
-            'QualifiedvLEIIssuervLEICredential': self.qviPayload,
-            'LegalEntityvLEICredential': self.entityPayload,
-            'LegalEntityOfficialOrganizationalRolevLEICredential': self.roleCredentialPayload
+            CHARTER_TYPE: self.journeyCharterPayload
         }
 
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
