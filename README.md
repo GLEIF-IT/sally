@@ -207,7 +207,18 @@ Leave the script running to be accessible to Sally.
 
 The workflow script starts the following components for you:
 
-TODO: Finish writing the rest of the readme
+
+## TODOs
+
+TODO: Finish updating the rest of the readme
+TODO: Update all of the tests to work with the new validation and payload functions.
+
+# Warning
+
+WARNING: Everything below this line is not revised and you can ignore it.
+
+_________________________________________
+
 
 ### KERIpy
 

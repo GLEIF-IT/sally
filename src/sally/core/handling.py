@@ -29,6 +29,7 @@ OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
 CredentialMapping = namedtuple('CredentialMapping', 'credential_type said')
 
+
 def loadHandlers(cdb, exc):
     """ Load handlers for the peer-to-peer challenge response protocol
 
@@ -430,73 +431,6 @@ class Communicator(doing.DoDoer):
         # TODO add attribute validation like in validateOfficialRole
         self.validateJourneyMark(mark_creder)
 
-    def validateQualifiedvLEIIssuer(self, creder):
-        """ Validate issuer of QVI against known valid issuer
-
-        Parameters:
-            creder (Creder): QVI credential to validate
-
-        Raises:
-            ValidationError: If credential was not issued from known valid issuer
-
-        """
-        if creder.schema != QVI_SCHEMA:
-            raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
-
-        if not creder.issuer == self.auth:
-            raise kering.ValidationError("QVI credential not issued by known valid issuer")
-
-    def validateLegalEntity(self, creder):
-        if creder.schema != LE_SCHEMA:
-            raise kering.ValidationError(f"invalid schema {creder.schema} for LE credential {creder.said}")
-
-        self.validateQVIChain(creder)
-
-    def validateOfficialRoleAuth(self, creder):
-        if creder.schema != OOR_AUTH_SCHEMA:
-            raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
-
-        edges = creder.chains
-        lesaid = edges["le"]["n"]
-        le = self.reger.creds.get(lesaid)
-        if le is None:
-            raise kering.ValidationError(f"LE credential {lesaid} not found for AUTH credential {creder.said}")
-
-        self.validateLegalEntity(le)
-
-    def validateOfficialRole(self, creder):
-        if creder.schema != OOR_SCHEMA:
-            raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
-
-        edges = creder.chains
-        asaid = edges["auth"]["n"]
-        auth = self.reger.creds.get(asaid)
-        if auth is None:
-            raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
-
-        if auth.crd["a"]["AID"] != creder.subject["i"]:
-            raise kering.ValidationError(f"invalid issuee {creder.subject['i']}  doesnt match AUTH value of "
-                                         f"{auth.crd['a']['AID']} for OOR " f"credential {creder.said}")
-
-        if auth.crd["a"]["personLegalName"] != creder.subject["personLegalName"]:
-            raise kering.ValidationError(f"invalid personLegalNAme {creder.subject['personLegalName']} for OOR "
-                                         f"credential {creder.said}")
-
-        if auth.crd["a"]["officialRole"] != creder.subject["officialRole"]:
-            raise kering.ValidationError(f"invalid role {creder.subject['officialRole']} for OOR credential"
-                                         f" {creder.said}")
-
-        self.validateOfficialRoleAuth(auth)
-
-    def validateQVIChain(self, creder):
-        edges = creder.chains
-        qsaid = edges["qvi"]["n"]
-        qcreder = self.reger.creds.get(qsaid)
-        if qcreder is None:
-            raise kering.ValidationError(f"QVI credential {qsaid} not found for credential {creder.said}")
-
-        self.validateQualifiedvLEIIssuer(qcreder)
-
     @staticmethod
     def treasureHuntingJourneyPayload(creder, reger):
         a = creder.crd["a"]
@@ -590,66 +524,6 @@ class Communicator(doing.DoDoer):
             firstName=ratts["requester"]["firstName"],
             lastName=ratts["requester"]["lastName"],
             nickname=ratts["requester"]["nickname"]
-        )
-
-        return data
-
-    @staticmethod
-    def qviPayload(creder, reger):
-        a = creder.crd["a"]
-        data = dict(
-            schema=creder.schema,
-            issuer=creder.issuer,
-            issueTimestamp=a["dt"],
-            credential=creder.said,
-            recipient=a["i"],
-            LEI=a["LEI"]
-        )
-
-        return data
-
-    @staticmethod
-    def entityPayload(creder, reger):
-        a = creder.crd["a"]
-        edges = creder.chains
-        qsaid = edges["qvi"]["n"]
-        data = dict(
-            schema=creder.schema,
-            issuer=creder.issuer,
-            issueTimestamp=a["dt"],
-            credential=creder.said,
-            recipient=a["i"],
-            qviCredential=qsaid,
-            LEI=a["LEI"]
-        )
-
-        return data
-
-    @staticmethod
-    def roleCredentialPayload(creder, reger):
-        a = creder.crd["a"]
-        edges = creder.chains
-        asaid = edges["auth"]["n"]
-
-        auth = reger.creds.get(asaid)
-        aedges = auth.chains
-        lesaid = aedges["le"]["n"]
-        qvi = reger.creds.get(lesaid)
-        qedges = qvi.chains
-        qsaid = qedges["qvi"]["n"]
-
-        data = dict(
-            schema=creder.schema,
-            issuer=creder.issuer,
-            issueTimestamp=a["dt"],
-            credential=creder.said,
-            recipient=a["i"],
-            authCredential=asaid,
-            qviCredential=qsaid,
-            legalEntityCredential=lesaid,
-            LEI=a["LEI"],
-            personLegalName=a["personLegalName"],
-            officialRole=a["officialRole"]
         )
 
         return data
