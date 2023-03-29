@@ -58,7 +58,10 @@ class Listener:
                 print(f"Gatekeeper | Valid Credential. Validated at {datetime.datetime.now()}")
                 self.debug_request(req, body)
             case 'rev':
-                print(f"Gatekeeper | Invalid credential. Revoked on: {body['data']['revocationTimestamp']}")
+                schemaSaid = body['data']['schema']
+                credentialSaid = body['data']['credential']
+                revocationTimestamp = body['data']['revocationTimestamp']
+                print(f"Gatekeeper | Invalid credential {credentialSaid} with schema {schemaSaid}. Revoked on: {revocationTimestamp}")
                 self.debug_request(req, body)
             case _:
                 print('Unexpected action type')

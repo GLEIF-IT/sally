@@ -9,6 +9,7 @@ import json
 from keri.app import keeping, habbing, directing, configing, oobiing
 from keri.app.cli.common import existing
 
+import sally
 from sally.core import serving
 from sally.core.serving import CredentialMapping
 
@@ -103,7 +104,7 @@ def launch(args, expire=0.0):
     doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth,
                            listen=listen, timeout=timeout, retry=retry, mappings=mappings)
 
-    print(f"Gatekeeper server listening on {httpPort}")
+    print(f"Gatekeeper v{sally.__version__} server listening on {httpPort}")
     directing.runController(doers=doers, expire=expire)
 
 

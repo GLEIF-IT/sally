@@ -181,7 +181,7 @@ class Communicator(doing.DoDoer):
                     state = self.reger.tevers[regk].vcState(creder.said)
                     if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
                         self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
-                        raise kering.ValidationError(f"revoked credential {creder.said} being presented")
+                        raise kering.InvalidCredentialStateError(f"Revoked credential {creder.said} being presented")
 
                     handler_type = self.resolve_said_to_type(creder.schema)
                     if handler_type in self.schema_handlers.keys():
@@ -191,6 +191,9 @@ class Communicator(doing.DoDoer):
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
 
+                except kering.InvalidCredentialStateError as ex:
+                    print(ex)
+                    logger.error(f'Revoked credential {creder.said} from issuer {creder.issuer} being presented.')
                 except kering.ValidationError as ex:
                     print(ex)
                     logger.error(f"credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
