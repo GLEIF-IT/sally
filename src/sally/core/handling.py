@@ -405,12 +405,6 @@ class Communicator(doing.DoDoer):
         if qcreder is None:
             raise kering.ValidationError(f"QVI credential {qsaid} not found for credential {creder.said}")
 
-        qregk = qcreder.status
-        qstate = self.reger.tevers[qregk].vcState(qcreder.said)
-        if qstate is None or qstate.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
-            raise kering.ValidationError(
-                f"QVI credential {qcreder.said} of the presented {creder.said} has been revoked")
-
         self.validateQualifiedvLEIIssuer(qcreder)
 
     @staticmethod
