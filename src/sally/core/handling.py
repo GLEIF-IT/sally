@@ -22,10 +22,10 @@ from sally.core import httping
 
 logger = help.ogler.getLogger()
 
-QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
-LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
-OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
-OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
+QVI_SCHEMA = ["EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao", "EIvws7VIPxZf13bE7dDrL-bPYwSmhojNa18otZKA4ZCX"]
+LE_SCHEMA = ["ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY", "EE-A9Se4HXtBjUGMNkha0iJmbbEhix5Dk4zC-Gld04Xe"]
+OOR_AUTH_SCHEMA = ["EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E", "EMbw9Jb55juzU5teTN9wtaDNcAy_XXgmbv7UT-4Ad66d"]
+OOR_SCHEMA = ["EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy", "EPeEsNqCNUfHyZfejmlO3kiDgXrDvthr2Mq4iCwD0zIR"]
 
 
 def loadHandlers(cdb, exc):
@@ -158,11 +158,11 @@ class Communicator(doing.DoDoer):
                     state = self.reger.tevers[regk].vcState(creder.said)
                     if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
-                    if creder.schema == QVI_SCHEMA:
+                    if creder.schema in QVI_SCHEMA:
                         self.validateQualifiedvLEIIssuer(creder)
-                    elif creder.schema == LE_SCHEMA:
+                    elif creder.schema in LE_SCHEMA:
                         self.validateLegalEntity(creder)
-                    elif creder.schema == OOR_SCHEMA:
+                    elif creder.schema in OOR_SCHEMA:
                         self.validateOfficialRole(creder)
                     else:
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
@@ -208,11 +208,11 @@ class Communicator(doing.DoDoer):
                 resource = creder.schema
                 actor = creder.issuer
                 if action == "iss":  # presentation of issued credential
-                    if creder.schema == QVI_SCHEMA:
+                    if creder.schema in QVI_SCHEMA:
                         data = self.qviPayload(creder)
-                    elif creder.schema == LE_SCHEMA:
+                    elif creder.schema in LE_SCHEMA:
                         data = self.entityPayload(creder)
-                    elif creder.schema == OOR_SCHEMA:
+                    elif creder.schema in OOR_SCHEMA:
                         data = self.roleCredentialPayload(self.reger, creder)
                     else:
                         raise kering.ValidationError("this will never happen because all credentials that get here are"
@@ -350,20 +350,20 @@ class Communicator(doing.DoDoer):
             ValidationError: If credential was not issued from known valid issuer
 
         """
-        if creder.schema != QVI_SCHEMA:
+        if creder.schema not in QVI_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
 
         if not creder.issuer == self.auth:
             raise kering.ValidationError("QVI credential not issued by known valid issuer")
 
     def validateLegalEntity(self, creder):
-        if creder.schema != LE_SCHEMA:
+        if creder.schema not in LE_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for LE credential {creder.said}")
 
         self.validateQVIChain(creder)
 
     def validateOfficialRoleAuth(self, creder):
-        if creder.schema != OOR_AUTH_SCHEMA:
+        if creder.schema not in OOR_AUTH_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
         edges = creder.chains
@@ -375,7 +375,7 @@ class Communicator(doing.DoDoer):
         self.validateLegalEntity(le)
 
     def validateOfficialRole(self, creder):
-        if creder.schema != OOR_SCHEMA:
+        if creder.schema not in OOR_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
         edges = creder.chains

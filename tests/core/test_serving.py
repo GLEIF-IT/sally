@@ -52,7 +52,7 @@ def test_tevery_cuery(seeder, mockHelpingNowUTC):
 
         prefixer = coring.Prefixer(qb64=creder.issuer)
         assert creder.said == issr.lesaid
-        assert creder.schema == handling.LE_SCHEMA
+        assert creder.schema == handling.LE_SCHEMA[0]
         assert prefixer.qb64 == qvi
 
         cues = decking.Deck()

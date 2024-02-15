@@ -84,7 +84,7 @@ class CredentialIssuer:
         extCred = credentialing.Credentialer(hby=self.extHby, rgy=self.extRgy, registrar=extRar, verifier=extVer)
         creder = extCred.create(regname=self.extRgy.name,
                                 recp=self.qviHab.pre,
-                                schema=handling.QVI_SCHEMA,
+                                schema=handling.QVI_SCHEMA[0],
                                 source=None,
                                 rules=None,
                                 data=dict(LEI="6383001AJTYIGC8Y1X37"),
@@ -114,7 +114,7 @@ class CredentialIssuer:
 
         # Issue Legal Entity Credential from QVI to LE
         # Create edges pointing back to QVI credential
-        edges = dict(d="", qvi=dict(n=creder.said, s=handling.QVI_SCHEMA))
+        edges = dict(d="", qvi=dict(n=creder.said, s=handling.QVI_SCHEMA[0]))
         _, edges = coring.Saider.saidify(sad=edges, label=coring.Ids.d)
 
         # Load rules section
@@ -126,7 +126,7 @@ class CredentialIssuer:
         qviCred = credentialing.Credentialer(hby=self.qviHby, rgy=self.qviRgy, registrar=qviRar, verifier=qviVer)
         creder = qviCred.create(regname=self.qviRgy.name,
                                 recp=self.leeHab.pre,
-                                schema=handling.LE_SCHEMA,
+                                schema=handling.LE_SCHEMA[0],
                                 source=edges,
                                 rules=rules,
                                 data=dict(LEI="5493001KJTIIGC8Y1R17"),
@@ -156,13 +156,13 @@ class CredentialIssuer:
 
         # Issue OOR AUTH Credential from LE to QVI
         # Create edges pointing back to LE credential
-        edges = dict(d="", le=dict(n=creder.said, s=handling.LE_SCHEMA))
+        edges = dict(d="", le=dict(n=creder.said, s=handling.LE_SCHEMA[0]))
         _, edges = coring.Saider.saidify(sad=edges, label=coring.Ids.d)
 
         leeCred = credentialing.Credentialer(hby=self.leeHby, rgy=self.leeRgy, registrar=leeRar, verifier=leeVer)
         creder = leeCred.create(regname=self.leeRgy.name,
                                 recp=self.qviHab.pre,
-                                schema=handling.OOR_AUTH_SCHEMA,
+                                schema=handling.OOR_AUTH_SCHEMA[0],
                                 source=edges,
                                 rules=rules,
                                 data=dict(
@@ -195,13 +195,13 @@ class CredentialIssuer:
 
         # Issue OOR Credential from QVI to Person
         # Create edges pointing back to AUTH credential
-        edges = dict(d="", auth=dict(n=creder.said, o="I2I", s=handling.OOR_AUTH_SCHEMA))
+        edges = dict(d="", auth=dict(n=creder.said, o="I2I", s=handling.OOR_AUTH_SCHEMA[0]))
         _, edges = coring.Saider.saidify(sad=edges, label=coring.Ids.d)
 
         qviCred = credentialing.Credentialer(hby=self.qviHby, rgy=self.qviRgy, registrar=qviRar, verifier=qviVer)
         creder = qviCred.create(regname=self.qviRgy.name,
                                 recp=self.perHab.pre,
-                                schema=handling.OOR_SCHEMA,
+                                schema=handling.OOR_SCHEMA[0],
                                 source=edges,
                                 rules=rules,
                                 data=dict(
