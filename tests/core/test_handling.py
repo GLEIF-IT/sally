@@ -5,52 +5,80 @@ sally.core.handling module
 
 Handling support
 """
+import time
 
 import falcon
-from hio.base import doing
+from hio.base import doing, tyming
 from hio.core import http
 from hio.help import decking
-from keri.app import habbing
+from keri.app import habbing, notifying
 from keri.core import coring, parsing, eventing
 from keri.help import helping
 from keri.peer import exchanging
+from keri.vc import protocoling
 from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
-
-import issuing
 from sally.core import handling, basing
 
+import issuing
 
-def test_presentation_handler():
+
+def test_presentation_handler(seeder, mockHelpingNowUTC):
     salt = coring.Salter(raw=b'abcdef0123456789').qb64
     with habbing.openHby(name="test", base="test", salt=salt) as hby:
         cdb = basing.CueBaser(name="test_cb")
         exc = exchanging.Exchanger(hby=hby, handlers=[])
+        notifier = notifying.Notifier(hby=hby)
+        protocoling.loadHandlers(hby=hby, exc=exc, notifier=notifier)
 
-        handling.loadHandlers(cdb=cdb, exc=exc)
+        seeder.load_schema(hby.db)
+        # Load file containing entire chain for issued and valid Legal Entity credential
+        issr = issuing.CredentialIssuer()
+        issr.issue_legal_entity_vlei(seeder)
 
-        assert len(exc.routes) == 1
-        assert exc.routes["/presentation"] is not None
+        grant, atc = issr.grant_legal_entity_vlei()
+        print(grant.pretty())
 
-        pre = "ECtWlHS2Wbx5M2Rg6nm69PCtzwb1veiRNvDpBGF9Z1Pc"
-        said = "EJcjV4DalEqAtaOdlEcjNvo75HCs0lN5K3BbQwJ5kN6o"
+        # create parser
+        reger = viring.Reger(temp=True)
+        kvy = eventing.Kevery(db=hby.db)
+        tvy = veventing.Tevery(db=hby.db, reger=reger)
+        vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
+        parser = parsing.Parser(kvy=kvy, tvy=tvy, vry=vry, exc=exc)
 
-        phan = exc.routes["/presentation"]
-        phan.msgs.append(dict(payload=dict(i=pre,
-                                           n=said)))
+        doers = handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser)
+
+        msgs = bytearray()
+        for msg in issr.qviHab.db.clonePreIter(pre=issr.qviHab.pre):
+            msgs.extend(msg)
+
+        parser.parse(ims=bytes(msgs))
+
+        ims = grant.raw + atc
+        parser.parse(ims=ims)
+
         limit = 1.0
         tock = 1.0
-        doist = doing.Doist(limit=limit, tock=tock)
-        doist.do(doers=[phan])
+        doist = doing.Doist(limit=limit, tock=tock, doers=doers)
+
+        doist.enter()
+        tymer = tyming.Tymer(tymth=doist.tymen(), duration=doist.limit)
+
+        while cdb.snd.get(keys=(issr.lesaid,)) is None or not tymer.expired:
+            doist.recur()
+            time.sleep(doist.tock)
+
+        doist.exit()
+
         assert doist.tyme == limit
 
-        prefixer = cdb.snd.get(keys=(said,))
+        prefixer = cdb.snd.get(keys=(issr.lesaid,))
         assert prefixer is not None
-        assert prefixer.qb64 == pre
+        assert prefixer.qb64 == issr.qviHab.pre
 
-        dater = cdb.iss.get(keys=(said,))
+        dater = cdb.iss.get(keys=(issr.lesaid,))
         assert dater is not None
-        assert dater.datetime < helping.nowUTC()
+        assert dater.datetime == helping.fromIso8601("2021-01-01T00:00:00.000000+00:00")
 
 
 def test_communicator(seeder, mockHelpingNowUTC):
@@ -203,5 +231,3 @@ class MockListener:
     def on_post(self, req, rep):
         self.msgs.append(req)
         rep.status = falcon.HTTP_200
-
-

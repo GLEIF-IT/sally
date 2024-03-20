@@ -13,12 +13,13 @@ from hio.base import doing
 from hio.core import http
 from hio.help import decking
 from keri import help
-from keri.app import indirecting, storing
+from keri.app import indirecting, storing, notifying
 from keri.core import routing, eventing, coring
 from keri.end import ending
 from keri.peer import exchanging
 from keri.vdr import viring, verifying
 from keri.vdr.eventing import Tevery
+from keri.vc import protocoling
 
 from sally.core import handling, basing
 
@@ -64,6 +65,9 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     rvy = routing.Revery(db=hby.db)
 
     exc = exchanging.Exchanger(db=hby.db, handlers=[])
+    notifier = notifying.Notifier(hby=hby)
+    # writes notifications for recievced ipex grant exen messages
+    protocoling.loadHandlers(hby=hby, exc=exc, notifier=notifier)
     kvy = eventing.Kevery(db=hby.db,
                           lax=True,
                           local=False,
@@ -75,8 +79,6 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
                  local=False)
     tvy.registerReplyRoutes(router=rvy.rtr)
     tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues)
-
-    handling.loadHandlers(exc=exc, cdb=cdb)
 
     app = falcon.App(
         middleware=falcon.CORSMiddleware(
@@ -102,6 +104,8 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
                                           rep=rep,
                                           topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate",
                                                   "/challenge"])
+        # reading notifications for received ipex grant exn messages
+        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
         doers.append(mbd)
 
     return doers

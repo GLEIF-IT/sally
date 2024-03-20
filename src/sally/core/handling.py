@@ -7,17 +7,17 @@ EXN Message handling
 """
 import datetime
 import json
-from urllib import parse
 from base64 import urlsafe_b64encode as encodeB64
+from urllib import parse
 
 from hio.base import doing
 from hio.core import http
-from hio.help import decking, Hict
+from hio.help import Hict
+from keri import help, kering
 from keri.core import coring
+from keri.peer import exchanging
 from keri.end import ending
 from keri.help import helping
-from keri import help, kering
-
 from sally.core import httping
 
 logger = help.ogler.getLogger()
@@ -28,16 +28,16 @@ OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
 OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
 
-def loadHandlers(cdb, exc):
+def loadHandlers(cdb, hby, notifier, parser):
     """ Load handlers for the peer-to-peer challenge response protocol
 
     Parameters:
         cdb (CueBaser): communication escrow database environment
-        exc (Exchanger): Peer-to-peer message router
+        notifier (Notifier): Notifications
+        parser (Parser)
 
     """
-    proofs = PresentationProofHandler(cdb=cdb)
-    exc.addHandler(proofs)
+    return [PresentationProofHandler(cdb=cdb, hby=hby, notifier=notifier, parser=parser)]
 
 
 class PresentationProofHandler(doing.Doer):
@@ -47,61 +47,57 @@ class PresentationProofHandler(doing.Doer):
 
     """
 
-    resource = "/presentation"
-
-    def __init__(self, cdb, cues=None, **kwa):
+    def __init__(self, cdb, hby, notifier, parser, **kwa):
         """ Initialize instance
 
         Parameters:
             cdb (CueBaser): communication escrow database environment
-            cue(Deck): outbound cues
+            notifier(Notifier): to read notifications to processes exns
             **kwa (dict): keyword arguments passes to super Doer
 
         """
-        self.msgs = decking.Deck()
-        self.cues = cues if cues is not None else decking.Deck()
         self.cdb = cdb
-
+        self.hby = hby
+        self.notifier = notifier
+        self.parser = parser
         super(PresentationProofHandler, self).__init__()
 
-    def do(self, tymth, tock=0.0, **opts):
+    def recur(self, tyme):
         """ Handle incoming messages by queueing presentation messages to be handled when credential is received
 
         Parameters:
             tymth (function): injected function wrapper closure returned by .tymen() of
                 Tymist instance. Calling tymth() returns associated Tymist .tyme.
-            tock (float): injected initial tock value
-
-        Messages:
-            payload is dict representing the body of a /presentation message
-            pre is qb64 identifier prefix of sender
-
-
         """
-        self.wind(tymth)
-        self.tock = tock
-        yield self.tock
+        for keys, notice in self.notifier.noter.notes.getItemIter():
+            attrs = notice.attrs
+            route = attrs['r']
 
-        while True:
-            while self.msgs:
-                msg = self.msgs.popleft()
-                payload = msg["payload"]
-                # TODO: limit presentations from issuee or issuer from flag.
+            if route == '/exn/ipex/grant':
+                # said of grant message
+                said = attrs['d']
+                exn, pathed = exchanging.cloneMessage(self.hby, said=said)
+                embeds = exn.ked['e']
 
-                sender = payload["i"]
-                said = payload["a"] if "a" in payload else payload["n"]
+                for label in ("anc", "iss", "acdc"):
+                    ked = embeds[label]
+                    sadder = coring.Sadder(ked=ked)
+                    ims = bytearray(sadder.raw) + pathed[label]
+                    self.parser.parseOne(ims=ims)
 
+                acdc = embeds["acdc"]
+                said = acdc['d']
+
+                sender = acdc['i']
                 prefixer = coring.Prefixer(qb64=sender)
-                saider = coring.Saider(qb64=said)
-                now = coring.Dater()
 
-                self.cdb.snd.pin(keys=(saider.qb64,), val=prefixer)
-                self.cdb.iss.pin(keys=(saider.qb64,), val=now)
+                self.cdb.snd.pin(keys=(said,), val=prefixer)
+                self.cdb.iss.pin(keys=(said,), val=coring.Dater())
 
-                yield self.tock
+            # deleting wether its a grant or not, since we only process grant
+            self.notifier.noter.notes.rem(keys=keys)
 
-            yield self.tock
-
+        return False
 
 class Communicator(doing.DoDoer):
     """

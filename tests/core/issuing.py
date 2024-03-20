@@ -14,6 +14,8 @@ from keri.core import coring, parsing, eventing, serdering
 from keri.core.eventing import SealEvent
 from keri.vdr import credentialing
 from keri.vdr import verifying
+from keri.vc import protocoling
+from keri.help import helping
 
 from sally.core import handling
 
@@ -44,6 +46,22 @@ class CredentialIssuer:
         assert self.qviHab.pre == "EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ"
         assert self.leeHab.pre == "EI0QTANut9IcXuPDbr7la4JJrjhMZ-EEk5q7Ahds8qBa"
         assert self.perHab.pre == "EIf2fK7M9Mfd-Twv2Ig3n8PpGM_p976mciznHoknVPLs"
+
+    def grant_legal_entity_vlei(self):
+        creder, prefixer, seqner, saider = self.qviRgy.reger.cloneCred(said=self.lesaid)
+        acdc = signing.serialize(creder, prefixer, seqner, saider)
+        iss = self.qviRgy.reger.cloneTvtAt(creder.said)
+
+        iserder = serdering.SerderKERI(raw=bytes(iss))  # coring.Serder(raw=bytes(iss))
+        seqner = coring.Seqner(sn=iserder.sn)
+
+        serder = self.qviHby.db.findAnchoringSealEvent(creder.sad['i'],
+                                                    seal=dict(i=iserder.pre, s=seqner.snh, d=iserder.said))
+        anc = self.qviHby.db.cloneEvtMsg(pre=serder.pre, fn=0, dig=serder.said)
+
+        grant, atc = protocoling.ipexGrantExn(hab=self.qviHab, recp=self.leeHab.pre, message="a string", acdc=acdc,
+                                            iss=iss, anc=anc,dt=helping.nowIso8601())
+        return grant, atc
 
     def issue_legal_entity_vlei(self, seeder):
         extKvy = eventing.Kevery(db=self.extHab.db)
