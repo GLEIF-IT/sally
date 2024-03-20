@@ -154,9 +154,9 @@ class Communicator(doing.DoDoer):
             if self.reger.saved.get(keys=(said,)) is not None:
                 creder = self.reger.creds.get(keys=(said,))
                 try:
-                    regk = creder.status
+                    regk = creder.regi
                     state = self.reger.tevers[regk].vcState(creder.said)
-                    if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
+                    if state is None or state.et not in (coring.Ilks.iss, coring.Ilks.bis):
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
                     if creder.schema == QVI_SCHEMA:
                         self.validateQualifiedvLEIIssuer(creder)
@@ -189,15 +189,15 @@ class Communicator(doing.DoDoer):
             if creder is None:  # received revocation before credential.  probably an error but let it timeout
                 continue
 
-            regk = creder.status
+            regk = creder.regi
             state = self.reger.tevers[regk].vcState(creder.said)
             if state is None:  # received revocation before status.  probably an error but let it timeout
                 continue
 
-            elif state.ked['et'] in (coring.Ilks.iss, coring.Ilks.bis):  # haven't received revocation event yet
+            elif state.et in (coring.Ilks.iss, coring.Ilks.bis):  # haven't received revocation event yet
                 continue
 
-            elif state.ked['et'] in (coring.Ilks.rev, coring.Ilks.brv):  # revoked
+            elif state.et in (coring.Ilks.rev, coring.Ilks.brv):  # revoked
                 self.cdb.rev.rem(keys=(said,))
                 self.cdb.revk.pin(keys=(said, dater.qb64), val=creder)
 
@@ -366,7 +366,7 @@ class Communicator(doing.DoDoer):
         if creder.schema != OOR_AUTH_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
-        edges = creder.chains
+        edges = creder.edge
         lesaid = edges["le"]["n"]
         le = self.reger.creds.get(lesaid)
         if le is None:
@@ -378,28 +378,28 @@ class Communicator(doing.DoDoer):
         if creder.schema != OOR_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
-        edges = creder.chains
+        edges = creder.edge
         asaid = edges["auth"]["n"]
         auth = self.reger.creds.get(asaid)
         if auth is None:
             raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
 
-        if auth.crd["a"]["AID"] != creder.subject["i"]:
-            raise kering.ValidationError(f"invalid issuee {creder.subject['i']}  doesnt match AUTH value of "
-                                         f"{auth.crd['a']['AID']} for OOR " f"credential {creder.said}")
+        if auth.sad["a"]["AID"] != creder.attrib["i"]:
+            raise kering.ValidationError(f"invalid issuee {creder.attrib['i']}  doesnt match AUTH value of "
+                                         f"{auth.sad['a']['AID']} for OOR " f"credential {creder.said}")
 
-        if auth.crd["a"]["personLegalName"] != creder.subject["personLegalName"]:
-            raise kering.ValidationError(f"invalid personLegalNAme {creder.subject['personLegalName']} for OOR "
+        if auth.sad["a"]["personLegalName"] != creder.attrib["personLegalName"]:
+            raise kering.ValidationError(f"invalid personLegalNAme {creder.attrib['personLegalName']} for OOR "
                                          f"credential {creder.said}")
 
-        if auth.crd["a"]["officialRole"] != creder.subject["officialRole"]:
-            raise kering.ValidationError(f"invalid role {creder.subject['officialRole']} for OOR credential"
+        if auth.sad["a"]["officialRole"] != creder.attrib["officialRole"]:
+            raise kering.ValidationError(f"invalid role {creder.attrib['officialRole']} for OOR credential"
                                          f" {creder.said}")
 
         self.validateOfficialRoleAuth(auth)
 
     def validateQVIChain(self, creder):
-        edges = creder.chains
+        edges = creder.edge
         qsaid = edges["qvi"]["n"]
         qcreder = self.reger.creds.get(qsaid)
         if qcreder is None:
@@ -409,7 +409,7 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def qviPayload(creder):
-        a = creder.crd["a"]
+        a = creder.sad["a"]
         data = dict(
             schema=creder.schema,
             issuer=creder.issuer,
@@ -423,8 +423,8 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def entityPayload(creder):
-        a = creder.crd["a"]
-        edges = creder.chains
+        a = creder.sad["a"]
+        edges = creder.edge
         qsaid = edges["qvi"]["n"]
         data = dict(
             schema=creder.schema,
@@ -440,15 +440,15 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def roleCredentialPayload(reger, creder):
-        a = creder.crd["a"]
-        edges = creder.chains
+        a = creder.sad["a"]
+        edges = creder.edge
         asaid = edges["auth"]["n"]
 
         auth = reger.creds.get(asaid)
-        aedges = auth.chains
+        aedges = auth.edge
         lesaid = aedges["le"]["n"]
         qvi = reger.creds.get(lesaid)
-        qedges = qvi.chains
+        qedges = qvi.edge
         qsaid = qedges["qvi"]["n"]
 
         data = dict(
@@ -468,13 +468,13 @@ class Communicator(doing.DoDoer):
         return data
 
     def revokePayload(self, creder):
-        regk = creder.status
+        regk = creder.regi
         state = self.reger.tevers[regk].vcState(creder.said)
 
         data = dict(
             schema=creder.schema,
             credential=creder.said,
-            revocationTimestamp=state.ked["dt"]
+            revocationTimestamp=state.dt
         )
 
         return data

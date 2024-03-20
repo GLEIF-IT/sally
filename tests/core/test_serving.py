@@ -1,5 +1,3 @@
-
-
 # -*- encoding: utf-8 -*-
 """
 SALLY
@@ -56,7 +54,7 @@ def test_tevery_cuery(seeder, mockHelpingNowUTC):
         assert prefixer.qb64 == qvi
 
         cues = decking.Deck()
-        serder = veventing.revoke(vcdig=creder.said, regk=creder.status, dig=creder.said)
+        serder = veventing.revoke(vcdig=creder.said, regk=creder.regi, dig=creder.said)
         cues.append(dict(kin="revoked", serder=serder))
         tc = serving.TeveryCuery(cdb=cdb, reger=reger, cues=cues)
 

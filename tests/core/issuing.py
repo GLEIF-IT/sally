@@ -9,8 +9,9 @@ Handling support
 import json
 import os
 
-from keri.app import habbing
-from keri.core import coring, parsing, eventing
+from keri.app import habbing, signing
+from keri.core import coring, parsing, eventing, serdering
+from keri.core.eventing import SealEvent
 from keri.vdr import credentialing
 from keri.vdr import verifying
 
@@ -89,7 +90,17 @@ class CredentialIssuer:
                                 rules=None,
                                 data=dict(LEI="6383001AJTYIGC8Y1X37"),
                                 private=False)
-        extCred.issue(creder=creder)
+        iserder = extRegy.issue(said=creder.said)
+        vcid = iserder.ked["i"]
+        rseq = coring.Seqner(snh=iserder.ked["s"])
+        rseal = eventing.SealEvent(vcid, rseq.snh, iserder.said)
+        rseal = dict(i=rseal.i, s=rseal.s, d=rseal.d)
+
+        anc = self.extHab.interact(data=[rseal])
+        aserder = serdering.SerderKERI(raw=anc)
+
+        extCred.issue(creder=creder, serder=iserder)
+        extRar.issue(creder=creder, iserder=iserder, anc=aserder)
 
         while not self.extRgy.reger.saved.get(creder.said):
             self.extRgy.processEscrows()
@@ -115,7 +126,7 @@ class CredentialIssuer:
         # Issue Legal Entity Credential from QVI to LE
         # Create edges pointing back to QVI credential
         edges = dict(d="", qvi=dict(n=creder.said, s=handling.QVI_SCHEMA))
-        _, edges = coring.Saider.saidify(sad=edges, label=coring.Ids.d)
+        _, edges = coring.Saider.saidify(sad=edges, label=coring.Saids.d)
 
         # Load rules section
         f = open(os.path.join(TEST_DIR, "rules.json"))
@@ -131,7 +142,17 @@ class CredentialIssuer:
                                 rules=rules,
                                 data=dict(LEI="5493001KJTIIGC8Y1R17"),
                                 private=False)
-        qviCred.issue(creder=creder)
+        iserder = qviRegy.issue(said=creder.said)
+        vcid = iserder.ked["i"]
+        rseq = coring.Seqner(snh=iserder.ked["s"])
+        rseal = eventing.SealEvent(vcid, rseq.snh, iserder.said)
+        rseal = dict(i=rseal.i, s=rseal.s, d=rseal.d)
+
+        anc = self.qviHab.interact(data=[rseal])
+        aserder = serdering.SerderKERI(raw=anc)
+
+        qviCred.issue(creder=creder, serder=iserder)
+        qviRar.issue(creder=creder, iserder=iserder, anc=aserder)
 
         while not self.qviRgy.reger.saved.get(creder.said):
             self.qviRgy.processEscrows()
@@ -157,7 +178,7 @@ class CredentialIssuer:
         # Issue OOR AUTH Credential from LE to QVI
         # Create edges pointing back to LE credential
         edges = dict(d="", le=dict(n=creder.said, s=handling.LE_SCHEMA))
-        _, edges = coring.Saider.saidify(sad=edges, label=coring.Ids.d)
+        _, edges = coring.Saider.saidify(sad=edges, label=coring.Saids.d)
 
         leeCred = credentialing.Credentialer(hby=self.leeHby, rgy=self.leeRgy, registrar=leeRar, verifier=leeVer)
         creder = leeCred.create(regname=self.leeRgy.name,
@@ -171,7 +192,17 @@ class CredentialIssuer:
                                     officialRole="Baba Yaga",
                                     personLegalName="John Wick"),
                                 private=False)
-        leeCred.issue(creder=creder)
+        iserder = leeRegy.issue(said=creder.said)
+        vcid = iserder.ked["i"]
+        rseq = coring.Seqner(snh=iserder.ked["s"])
+        rseal = eventing.SealEvent(vcid, rseq.snh, iserder.said)
+        rseal = dict(i=rseal.i, s=rseal.s, d=rseal.d)
+
+        anc = self.leeHab.interact(data=[rseal])
+        aserder = serdering.SerderKERI(raw=anc)
+
+        leeCred.issue(creder=creder, serder=iserder)
+        leeRar.issue(creder=creder, iserder=iserder, anc=aserder)
 
         while not self.leeRgy.reger.saved.get(creder.said):
             self.leeRgy.processEscrows()
@@ -196,7 +227,7 @@ class CredentialIssuer:
         # Issue OOR Credential from QVI to Person
         # Create edges pointing back to AUTH credential
         edges = dict(d="", auth=dict(n=creder.said, o="I2I", s=handling.OOR_AUTH_SCHEMA))
-        _, edges = coring.Saider.saidify(sad=edges, label=coring.Ids.d)
+        _, edges = coring.Saider.saidify(sad=edges, label=coring.Saids.d)
 
         qviCred = credentialing.Credentialer(hby=self.qviHby, rgy=self.qviRgy, registrar=qviRar, verifier=qviVer)
         creder = qviCred.create(regname=self.qviRgy.name,
@@ -209,7 +240,17 @@ class CredentialIssuer:
                                     personLegalName="John Wick",
                                     officialRole="Baba Yaga"),
                                 private=False)
-        qviCred.issue(creder=creder)
+        iserder = qviRegy.issue(said=creder.said)
+        vcid = iserder.ked["i"]
+        rseq = coring.Seqner(snh=iserder.ked["s"])
+        rseal = eventing.SealEvent(vcid, rseq.snh, iserder.said)
+        rseal = dict(i=rseal.i, s=rseal.s, d=rseal.d)
+
+        anc = self.qviHab.interact(data=[rseal])
+        aserder = serdering.SerderKERI(raw=anc)
+
+        qviCred.issue(creder=creder, serder=iserder)
+        qviRar.issue(creder=creder, iserder=iserder, anc=aserder)
 
         while not self.qviRgy.reger.saved.get(creder.said):
             self.qviRgy.processEscrows()
@@ -231,29 +272,38 @@ def openHab(name, temp, salt):
 
 def create_registry(hby, hab, rgy, salt):
     registrar = credentialing.Registrar(hby=hby, rgy=rgy, counselor=None)
-    registry = registrar.incept(name=hab.name, pre=hab.pre, conf=dict(nonce=salt, estOnly=False, noBackers=True))
+    conf = dict(nonce=salt, estOnly=False, noBackers=True)
+    registry = rgy.makeRegistry(name=hab.name, prefix=hab.pre, **conf)
 
-    while not registrar.complete(pre=registry.regk, sn=0):
-        rgy.processEscrows()
-        registrar.processEscrows()
+    rseal = SealEvent(registry.regk, "0", registry.regd)
+    rseal = dict(i=rseal.i, s=rseal.s, d=rseal.d)
+    anc = hab.interact(data=[rseal])
+
+    aserder = serdering.SerderKERI(raw=bytes(anc))
+    registrar.incept(iserder=registry.vcp, anc=aserder)
+
+    rgy.processEscrows()
+    registrar.processEscrows()
+
+    assert rgy.reger.ctel.get(keys=(registry.regk, coring.Seqner(sn=0).qb64)) is not None
 
     return registry, registrar
 
 
 def share_credential(hab, rgy, said):
     msgs = bytearray()
-    creder, sadsigers, sadcigars = rgy.reger.cloneCred(said=said)
+    creder, prefixer, seqner, saider = rgy.reger.cloneCred(said=said)
 
     for msg in hab.db.clonePreIter(pre=creder.issuer):
         msgs.extend(msg)
 
-    for msg in rgy.reger.clonePreIter(pre=creder.status):
+    for msg in rgy.reger.clonePreIter(pre=creder.regi):
         msgs.extend(msg)
 
     for msg in rgy.reger.clonePreIter(pre=creder.said):
         msgs.extend(msg)
 
-    chains = creder.chains
+    chains = creder.edge or {}
     saids = []
     for key, source in chains.items():
         if key == 'd':
@@ -268,6 +318,6 @@ def share_credential(hab, rgy, said):
         msgs.extend(share_credential(hab, rgy, esaid))
 
     msgs.extend(creder.raw)
-    msgs.extend(eventing.proofize(sadtsgs=sadsigers, sadcigars=sadcigars, pipelined=True))
+    msgs.extend(signing.serialize(creder, prefixer, seqner, saider))
 
     return bytes(msgs)

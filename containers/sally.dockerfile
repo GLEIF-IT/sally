@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM gleif/keri:0.6.9
+FROM weboftrust/keri:1.1.8
 MAINTAINER "GLEIF"
 
 # Disable output bufferering any output
