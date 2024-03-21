@@ -69,9 +69,9 @@ setup(
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
-    python_requires='>=3.10.3',
+    python_requires='>=3.12.1',
     install_requires=[
-        'keri>=0.6.8',
+        'keri>=1.1.8',
         'hio>=0.6.8',
         'multicommand>=1.0.0',
         'blake3>=0.3.1',

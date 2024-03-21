@@ -7,17 +7,17 @@ EXN Message handling
 """
 import datetime
 import json
-from urllib import parse
 from base64 import urlsafe_b64encode as encodeB64
+from urllib import parse
 
 from hio.base import doing
 from hio.core import http
-from hio.help import decking, Hict
+from hio.help import Hict
+from keri import help, kering
 from keri.core import coring
+from keri.peer import exchanging
 from keri.end import ending
 from keri.help import helping
-from keri import help, kering
-
 from sally.core import httping
 
 logger = help.ogler.getLogger()
@@ -28,16 +28,16 @@ OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
 OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
 
-def loadHandlers(cdb, exc):
+def loadHandlers(cdb, hby, notifier, parser):
     """ Load handlers for the peer-to-peer challenge response protocol
 
     Parameters:
         cdb (CueBaser): communication escrow database environment
-        exc (Exchanger): Peer-to-peer message router
+        notifier (Notifier): Notifications
+        parser (Parser)
 
     """
-    proofs = PresentationProofHandler(cdb=cdb)
-    exc.addHandler(proofs)
+    return [PresentationProofHandler(cdb=cdb, hby=hby, notifier=notifier, parser=parser)]
 
 
 class PresentationProofHandler(doing.Doer):
@@ -47,61 +47,57 @@ class PresentationProofHandler(doing.Doer):
 
     """
 
-    resource = "/presentation"
-
-    def __init__(self, cdb, cues=None, **kwa):
+    def __init__(self, cdb, hby, notifier, parser, **kwa):
         """ Initialize instance
 
         Parameters:
             cdb (CueBaser): communication escrow database environment
-            cue(Deck): outbound cues
+            notifier(Notifier): to read notifications to processes exns
             **kwa (dict): keyword arguments passes to super Doer
 
         """
-        self.msgs = decking.Deck()
-        self.cues = cues if cues is not None else decking.Deck()
         self.cdb = cdb
-
+        self.hby = hby
+        self.notifier = notifier
+        self.parser = parser
         super(PresentationProofHandler, self).__init__()
 
-    def do(self, tymth, tock=0.0, **opts):
+    def recur(self, tyme):
         """ Handle incoming messages by queueing presentation messages to be handled when credential is received
 
         Parameters:
             tymth (function): injected function wrapper closure returned by .tymen() of
                 Tymist instance. Calling tymth() returns associated Tymist .tyme.
-            tock (float): injected initial tock value
-
-        Messages:
-            payload is dict representing the body of a /presentation message
-            pre is qb64 identifier prefix of sender
-
-
         """
-        self.wind(tymth)
-        self.tock = tock
-        yield self.tock
+        for keys, notice in self.notifier.noter.notes.getItemIter():
+            attrs = notice.attrs
+            route = attrs['r']
 
-        while True:
-            while self.msgs:
-                msg = self.msgs.popleft()
-                payload = msg["payload"]
-                # TODO: limit presentations from issuee or issuer from flag.
+            if route == '/exn/ipex/grant':
+                # said of grant message
+                said = attrs['d']
+                exn, pathed = exchanging.cloneMessage(self.hby, said=said)
+                embeds = exn.ked['e']
 
-                sender = payload["i"]
-                said = payload["a"] if "a" in payload else payload["n"]
+                for label in ("anc", "iss", "acdc"):
+                    ked = embeds[label]
+                    sadder = coring.Sadder(ked=ked)
+                    ims = bytearray(sadder.raw) + pathed[label]
+                    self.parser.parseOne(ims=ims)
 
+                acdc = embeds["acdc"]
+                said = acdc['d']
+
+                sender = acdc['i']
                 prefixer = coring.Prefixer(qb64=sender)
-                saider = coring.Saider(qb64=said)
-                now = coring.Dater()
 
-                self.cdb.snd.pin(keys=(saider.qb64,), val=prefixer)
-                self.cdb.iss.pin(keys=(saider.qb64,), val=now)
+                self.cdb.snd.pin(keys=(said,), val=prefixer)
+                self.cdb.iss.pin(keys=(said,), val=coring.Dater())
 
-                yield self.tock
+            # deleting wether its a grant or not, since we only process grant
+            self.notifier.noter.notes.rem(keys=keys)
 
-            yield self.tock
-
+        return False
 
 class Communicator(doing.DoDoer):
     """
@@ -154,9 +150,9 @@ class Communicator(doing.DoDoer):
             if self.reger.saved.get(keys=(said,)) is not None:
                 creder = self.reger.creds.get(keys=(said,))
                 try:
-                    regk = creder.status
+                    regk = creder.regi
                     state = self.reger.tevers[regk].vcState(creder.said)
-                    if state is None or state.ked['et'] not in (coring.Ilks.iss, coring.Ilks.bis):
+                    if state is None or state.et not in (coring.Ilks.iss, coring.Ilks.bis):
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
                     if creder.schema == QVI_SCHEMA:
                         self.validateQualifiedvLEIIssuer(creder)
@@ -189,15 +185,15 @@ class Communicator(doing.DoDoer):
             if creder is None:  # received revocation before credential.  probably an error but let it timeout
                 continue
 
-            regk = creder.status
+            regk = creder.regi
             state = self.reger.tevers[regk].vcState(creder.said)
             if state is None:  # received revocation before status.  probably an error but let it timeout
                 continue
 
-            elif state.ked['et'] in (coring.Ilks.iss, coring.Ilks.bis):  # haven't received revocation event yet
+            elif state.et in (coring.Ilks.iss, coring.Ilks.bis):  # haven't received revocation event yet
                 continue
 
-            elif state.ked['et'] in (coring.Ilks.rev, coring.Ilks.brv):  # revoked
+            elif state.et in (coring.Ilks.rev, coring.Ilks.brv):  # revoked
                 self.cdb.rev.rem(keys=(said,))
                 self.cdb.revk.pin(keys=(said, dater.qb64), val=creder)
 
@@ -366,7 +362,7 @@ class Communicator(doing.DoDoer):
         if creder.schema != OOR_AUTH_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
-        edges = creder.chains
+        edges = creder.edge
         lesaid = edges["le"]["n"]
         le = self.reger.creds.get(lesaid)
         if le is None:
@@ -378,28 +374,28 @@ class Communicator(doing.DoDoer):
         if creder.schema != OOR_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
-        edges = creder.chains
+        edges = creder.edge
         asaid = edges["auth"]["n"]
         auth = self.reger.creds.get(asaid)
         if auth is None:
             raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
 
-        if auth.crd["a"]["AID"] != creder.subject["i"]:
-            raise kering.ValidationError(f"invalid issuee {creder.subject['i']}  doesnt match AUTH value of "
-                                         f"{auth.crd['a']['AID']} for OOR " f"credential {creder.said}")
+        if auth.sad["a"]["AID"] != creder.attrib["i"]:
+            raise kering.ValidationError(f"invalid issuee {creder.attrib['i']}  doesnt match AUTH value of "
+                                         f"{auth.sad['a']['AID']} for OOR " f"credential {creder.said}")
 
-        if auth.crd["a"]["personLegalName"] != creder.subject["personLegalName"]:
-            raise kering.ValidationError(f"invalid personLegalNAme {creder.subject['personLegalName']} for OOR "
+        if auth.sad["a"]["personLegalName"] != creder.attrib["personLegalName"]:
+            raise kering.ValidationError(f"invalid personLegalNAme {creder.attrib['personLegalName']} for OOR "
                                          f"credential {creder.said}")
 
-        if auth.crd["a"]["officialRole"] != creder.subject["officialRole"]:
-            raise kering.ValidationError(f"invalid role {creder.subject['officialRole']} for OOR credential"
+        if auth.sad["a"]["officialRole"] != creder.attrib["officialRole"]:
+            raise kering.ValidationError(f"invalid role {creder.attrib['officialRole']} for OOR credential"
                                          f" {creder.said}")
 
         self.validateOfficialRoleAuth(auth)
 
     def validateQVIChain(self, creder):
-        edges = creder.chains
+        edges = creder.edge
         qsaid = edges["qvi"]["n"]
         qcreder = self.reger.creds.get(qsaid)
         if qcreder is None:
@@ -409,7 +405,7 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def qviPayload(creder):
-        a = creder.crd["a"]
+        a = creder.sad["a"]
         data = dict(
             schema=creder.schema,
             issuer=creder.issuer,
@@ -423,8 +419,8 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def entityPayload(creder):
-        a = creder.crd["a"]
-        edges = creder.chains
+        a = creder.sad["a"]
+        edges = creder.edge
         qsaid = edges["qvi"]["n"]
         data = dict(
             schema=creder.schema,
@@ -440,15 +436,15 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def roleCredentialPayload(reger, creder):
-        a = creder.crd["a"]
-        edges = creder.chains
+        a = creder.sad["a"]
+        edges = creder.edge
         asaid = edges["auth"]["n"]
 
         auth = reger.creds.get(asaid)
-        aedges = auth.chains
+        aedges = auth.edge
         lesaid = aedges["le"]["n"]
         qvi = reger.creds.get(lesaid)
-        qedges = qvi.chains
+        qedges = qvi.edge
         qsaid = qedges["qvi"]["n"]
 
         data = dict(
@@ -468,13 +464,13 @@ class Communicator(doing.DoDoer):
         return data
 
     def revokePayload(self, creder):
-        regk = creder.status
+        regk = creder.regi
         state = self.reger.tevers[regk].vcState(creder.said)
 
         data = dict(
             schema=creder.schema,
             credential=creder.said,
-            revocationTimestamp=state.ked["dt"]
+            revocationTimestamp=state.dt
         )
 
         return data

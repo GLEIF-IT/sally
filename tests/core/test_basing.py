@@ -27,9 +27,9 @@ def test_baser():
     assert isinstance(baser.snd, subing.CesrSuber)
     assert isinstance(baser.iss, subing.CesrSuber)
     assert isinstance(baser.rev, subing.CesrSuber)
-    assert isinstance(baser.recv, proving.CrederSuber)
-    assert isinstance(baser.revk, proving.CrederSuber)
-    assert isinstance(baser.ack, proving.CrederSuber)
+    assert isinstance(baser.recv, subing.SerderSuber)
+    assert isinstance(baser.revk, subing.SerderSuber)
+    assert isinstance(baser.ack, subing.SerderSuber)
 
     assert baser.env.stat()['entries'] == 6
 
