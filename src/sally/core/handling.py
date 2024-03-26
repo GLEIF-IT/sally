@@ -99,6 +99,7 @@ class PresentationProofHandler(doing.Doer):
 
         return False
 
+
 class Communicator(doing.DoDoer):
     """
     Communicator is responsible for comminucating the receipt and successful verification

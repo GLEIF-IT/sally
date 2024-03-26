@@ -91,7 +91,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
-    doers = [httpServerDoer, comms, exc, tc]
+    doers = [httpServerDoer, comms, tc]
     if listen:
         print("This is where we start HttpEnd instead of MailboxDirector")
     else:

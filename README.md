@@ -226,7 +226,7 @@ integration:
 
 ```bash
 LE_SAID=`kli vc list --name legal-entity --alias legal-entity --said`
-kli vc present --name qvi --alias qvi --said ${LE_SAID} --recipient sally --include
+kli ipex grant --name qvi --alias qvi --said ${LE_SAID} --recipient sally
 ```
 
 ### Revoking Credentials
