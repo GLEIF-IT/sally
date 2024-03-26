@@ -64,7 +64,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
 
     rvy = routing.Revery(db=hby.db)
 
-    exc = exchanging.Exchanger(db=hby.db, handlers=[])
+    exc = exchanging.Exchanger(hby=hby, handlers=[])
     notifier = notifying.Notifier(hby=hby)
     # writes notifications for recievced ipex grant exen messages
     protocoling.loadHandlers(hby=hby, exc=exc, notifier=notifier)
