@@ -351,7 +351,7 @@ class Communicator(doing.DoDoer):
             raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
 
         if not creder.issuer == self.auth:
-            raise kering.ValidationError("QVI credential not issued by known valid issuer")
+            raise kering.ValidationError(f"QVI credential not issued by known valid issuer got {creder.issuer} expected {self.auth}")
 
     def validateLegalEntity(self, creder):
         if creder.schema != LE_SCHEMA:

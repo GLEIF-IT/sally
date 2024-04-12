@@ -8,7 +8,7 @@ services:
       - PYTHONIOENCODING=UTF-8
     command: witness demo
     volumes:
-      - ./config/witness-demo:/keripy/scripts/keri/cf/main
+      - ./docker-config/witness-demo:/keripy/scripts/keri/cf/main
     ports:
       - "127.0.0.1:5642:5642"
       - "127.0.0.1:5643:5643"
@@ -26,19 +26,7 @@ services:
       - PYTHONIOENCODING=UTF-8
       - AUTH=${AUTH:-EHOuGiHMxJShXHgSb6k_9pqxmRb8H-LT0R2hQouHp8pW}
     entrypoint:
-      - /sally/scripts/entrypoint.sh
-    # volumes:
-    #   - ./config/sally.json:/sally/config/keri/cf/sally.json
-    # command:
-    #   - server
-    #   - start
-    #   - --name
-    #   - sally
-    #   - --alias
-    #   - sally
-    #   - -w http://127.0.0.1:9923
-    #   - --auth
-    #   -
+      - /sally/scripts/docker-entrypoint.sh
     ports:
       - "127.0.0.1:9723:9723"
 
@@ -49,17 +37,14 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONIOENCODING=UTF-8
+    entrypoint:
+      - sally
     command:
       - hook
       - demo
     ports:
       - "127.0.0.1:9923:9923"
 
-    # vlei-server:
-    #   image: gleif/vlei:0.1.0
-    #   command: ["vLEI-server", "-s", "schema/acdc", "-c", "samples/acdc", "-o", "samples/oobis"]
-    #   ports:
-    #     - "127.0.0.1:7723:7723"
   vlei-server:
     image: gleif/vlei
     environment:
@@ -94,7 +79,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONIOENCODING=UTF-8
     volumes:
-      - ./config/keria.json:/keria/config/keri/cf/keria.json
+      - ./docker-config/keria.json:/keria/config/keri/cf/keria.json
     entrypoint: keria
     command:
       - start
