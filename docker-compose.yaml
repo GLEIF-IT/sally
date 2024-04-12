@@ -24,6 +24,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONIOENCODING=UTF-8
+      - AUTH=${AUTH:-EHOuGiHMxJShXHgSb6k_9pqxmRb8H-LT0R2hQouHp8pW}
     entrypoint:
       - /sally/scripts/entrypoint.sh
     # volumes:
@@ -37,7 +38,7 @@ services:
     #   - sally
     #   - -w http://127.0.0.1:9923
     #   - --auth
-    #   - EHOuGiHMxJShXHgSb6k_9pqxmRb8H-LT0R2hQouHp8pW
+    #   -
     ports:
       - "127.0.0.1:9723:9723"
 
