@@ -1,0 +1,115 @@
+version: "3"
+
+services:
+  witness-demo:
+    image: weboftrust/keri:1.1.9
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=UTF-8
+    command: witness demo
+    volumes:
+      - ./config/witness-demo:/keripy/scripts/keri/cf/main
+    ports:
+      - "127.0.0.1:5642:5642"
+      - "127.0.0.1:5643:5643"
+      - "127.0.0.1:5644:5644"
+      - "127.0.0.1:5645:5645"
+      - "127.0.0.1:5646:5646"
+      - "127.0.0.1:5647:5647"
+
+  sally:
+    build:
+      context: .
+      dockerfile: containers/sally.dockerfile
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=UTF-8
+    entrypoint:
+      - /sally/scripts/entrypoint.sh
+    # volumes:
+    #   - ./config/sally.json:/sally/config/keri/cf/sally.json
+    # command:
+    #   - server
+    #   - start
+    #   - --name
+    #   - sally
+    #   - --alias
+    #   - sally
+    #   - -w http://127.0.0.1:9923
+    #   - --auth
+    #   - EHOuGiHMxJShXHgSb6k_9pqxmRb8H-LT0R2hQouHp8pW
+    ports:
+      - "127.0.0.1:9723:9723"
+
+  sally-demo:
+    build:
+      context: .
+      dockerfile: containers/sally.dockerfile
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=UTF-8
+    command:
+      - hook
+      - demo
+    ports:
+      - "127.0.0.1:9923:9923"
+
+    # vlei-server:
+    #   image: gleif/vlei:0.1.0
+    #   command: ["vLEI-server", "-s", "schema/acdc", "-c", "samples/acdc", "-o", "samples/oobis"]
+    #   ports:
+    #     - "127.0.0.1:7723:7723"
+  vlei-server:
+    image: gleif/vlei
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=UTF-8
+    command:
+      - vLEI-server
+      - -s
+      - ./schema/acdc
+      - -c
+      - ./samples/acdc/
+      - -o
+      - ./samples/oobis/
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:7723/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao
+      interval: 2s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    ports:
+      - "127.0.0.1:7723:7723"
+
+  keria:
+    image: ${KERIA_IMAGE:-weboftrust/keria}:${KERIA_IMAGE_TAG:-latest}
+    environment:
+      - KERI_AGENT_CORS=1
+      - KERI_URL=http://keria:3902
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=UTF-8
+    volumes:
+      - ./config/keria.json:/keria/config/keri/cf/keria.json
+    entrypoint: keria
+    command:
+      - start
+      - --config-dir
+      - /keria/config
+      - --config-file
+      - keria
+      - --name
+      - agent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3902/spec.yaml"]
+      interval: 2s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    ports:
+      - 3901:3901
+      - 3902:3902
+      - 3903:3903
