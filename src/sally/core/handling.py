@@ -70,6 +70,7 @@ class PresentationProofHandler(doing.Doer):
                 Tymist instance. Calling tymth() returns associated Tymist .tyme.
         """
         for keys, notice in self.notifier.noter.notes.getItemIter():
+            logger.info(f"Processing notice {notice}")
             attrs = notice.attrs
             route = attrs['r']
 
@@ -143,7 +144,7 @@ class Communicator(doing.DoDoer):
         for (said,), dater in self.cdb.iss.getItemIter():
             # cancel presentations that have been around longer than timeout
             now = helping.nowUTC()
-            print(f"looking for credential {said}")
+            logger.info(f"looking for credential {said}")
             if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
                 self.cdb.iss.rem(keys=(said,))
                 continue
@@ -165,7 +166,6 @@ class Communicator(doing.DoDoer):
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
                 except kering.ValidationError as ex:
-                    print(ex)
                     logger.error(f"credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
                 else:
                     self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
@@ -212,6 +212,7 @@ class Communicator(doing.DoDoer):
                     elif creder.schema == OOR_SCHEMA:
                         data = self.roleCredentialPayload(self.reger, creder)
                     else:
+                        logger.error(f"invalid credential with schema {creder.schema} said {creder.said} issuer {creder.issuer}")
                         raise kering.ValidationError("this will never happen because all credentials that get here are"
                                                      " valid")
                 else:  # revocation of credential
@@ -239,7 +240,7 @@ class Communicator(doing.DoDoer):
     def processAcks(self):
         for (said,), creder in self.cdb.ack.getItemIter():
             # TODO: generate EXN ack message with credential information
-            print(f"ACK for credential {said} will be sent to {creder.issuer}")
+            logger.info(f"ACK for credential {said} will be sent to {creder.issuer}")
             self.cdb.ack.rem(keys=(said,))
 
     def escrowDo(self, tymth, tock=1.0):
@@ -268,7 +269,7 @@ class Communicator(doing.DoDoer):
             try:
                 self.processEscrows()
             except Exception as e:
-                print(e)
+                logger.error(e)
 
             yield self.retry
 
@@ -379,6 +380,7 @@ class Communicator(doing.DoDoer):
         asaid = edges["auth"]["n"]
         auth = self.reger.creds.get(asaid)
         if auth is None:
+            logger.error(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
             raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
 
         if auth.sad["a"]["AID"] != creder.attrib["i"]:
