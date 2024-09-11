@@ -5,10 +5,10 @@ sally.core.httping module
 
 HTTP utility
 """
-from http_sfv import List, Dictionary
 from base64 import urlsafe_b64encode as encodeB64
 from collections import namedtuple
 
+from http_sfv import Dictionary
 from keri.help import helping
 
 DEFAULTHEADERS = ('(created)', '(request-target)')

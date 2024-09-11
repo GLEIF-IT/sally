@@ -4,14 +4,8 @@ sally.app.commands module
 
 """
 import multicommand
-import logging
 
 from sally.app.cli import commands
-from keri import help
-
-
-help.ogler.level = logging.CRITICAL
-help.ogler.reopen(name="sally", temp=True, clear=True)
 
 
 def main():

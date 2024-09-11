@@ -4,15 +4,14 @@ sally.cli.commands module
 
 """
 import argparse
+import logging
 
 import falcon
-from hio.base import doing
 from hio.core import http
-from keri.app import keeping, habbing, directing, configing
-from keri.app.cli.common import existing
-from keri.end import ending
+from keri import help
+from keri.app import directing
 
-from sally.core import serving
+logger = help.ogler.getLogger()
 
 parser = argparse.ArgumentParser(description='Launch SALLY sample web hook server')
 parser.set_defaults(handler=lambda args: launch(args),
@@ -24,6 +23,12 @@ parser.add_argument('-p', '--http',
 
 
 def launch(args, expire=0.0):
+    baseFormatter = logging.Formatter('%(asctime)s [hook] %(levelname)-8s %(message)s')
+    baseFormatter.default_msec_format = None
+    help.ogler.baseConsoleHandler.setFormatter(baseFormatter)
+    help.ogler.level = logging.getLevelName(logging.INFO)
+    help.ogler.reopen(name="hook", temp=True, clear=True)
+
     httpPort = args.http
 
     app = falcon.App(
@@ -36,7 +41,7 @@ def launch(args, expire=0.0):
     server = http.Server(port=httpPort, app=app)
     httpServerDoer = http.ServerDoer(server=server)
 
-    print(f"Sally Web Hook Sample listening on {httpPort}")
+    logger.info(f"Sally Web Hook Sample listening on {httpPort}")
     directing.runController(doers=[httpServerDoer], expire=expire)
 
 
@@ -53,13 +58,11 @@ class Listener:
             rep: falcon.Response HTTP response
 
         """
-        print("** HEADERS **")
-        print(req.headers)
-        print("*************")
+        logger.info("** HEADERS **")
+        logger.info(req.headers)
+        logger.info("*************")
 
-        print("**** BODY ****")
+        logger.info("**** BODY ****")
         body = req.get_media()
-        print(body)
-        print("**************")
-
-
+        logger.info(body)
+        logger.info("**************")

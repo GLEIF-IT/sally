@@ -4,11 +4,15 @@ sally.cli.commands module
 
 """
 import argparse
+import logging
 
+from keri import help
 from keri.app import keeping, habbing, directing, configing, oobiing
 from keri.app.cli.common import existing
-
 from sally.core import serving
+
+help.ogler.level = logging.getLevelName(logging.INFO)
+logger = help.ogler.getLogger()
 
 parser = argparse.ArgumentParser(description='Launch SALLY micro-service')
 parser.set_defaults(handler=lambda args: launch(args),
@@ -51,11 +55,17 @@ parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listen
 
 
 def launch(args, expire=0.0):
+    base_formatter = logging.Formatter('%(asctime)s [sally] %(levelname)-8s %(message)s')
+    base_formatter.default_msec_format = None
+    help.ogler.baseConsoleHandler.setFormatter(base_formatter)
+    help.ogler.level = logging.getLevelName(logging.INFO)
+    help.ogler.reopen(name="sally", temp=True, clear=True)
+
     hook = args.web_hook
     name = args.name
     base = args.base
     bran = args.bran
-    httpPort = args.http
+    http_port = args.http
     auth = args.auth
 
     listen = args.listen
@@ -63,8 +73,8 @@ def launch(args, expire=0.0):
     retry = args.retry_delay
 
     alias = args.alias
-    configFile = args.configFile
-    configDir = args.configDir
+    config_file = args.configFile
+    config_dir = args.configDir
 
     ks = keeping.Keeper(name=name,
                         base=base,
@@ -75,10 +85,10 @@ def launch(args, expire=0.0):
 
     cf = None
     if aeid is None:
-        if configFile is not None:
-            cf = configing.Configer(name=configFile,
+        if config_file is not None:
+            cf = configing.Configer(name=config_file,
                                     base=base,
-                                    headDirPath=configDir,
+                                    headDirPath=config_dir,
                                     temp=False,
                                     reopen=True,
                                     clear=False)
@@ -92,8 +102,8 @@ def launch(args, expire=0.0):
 
     doers = [hbyDoer, *obl.doers]
 
-    doers += serving.setup(hby, alias=alias, httpPort=httpPort, hook=hook, auth=auth,
+    doers += serving.setup(hby, alias=alias, httpPort=http_port, hook=hook, auth=auth,
                            listen=listen, timeout=timeout, retry=retry)
 
-    print(f"Sally Server listening on {httpPort}")
+    logger.info(f"Sally Server listening on {http_port}")
     directing.runController(doers=doers, expire=expire)
