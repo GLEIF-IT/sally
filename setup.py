@@ -32,7 +32,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='sally',
-    version='0.0.1',  # also change in src/sally/__init__.py
+    version='0.1.0',  # also change in src/sally/__init__.py
     license='Apache Software License 2.0',
     description='vLEI Audit Reporting API',
     long_description="vLEI auditing server that responds to credential presentations by signaling via webhooks.",
@@ -52,7 +52,7 @@ setup(
         'Operating System :: Unix',
         'Operating System :: POSIX',
         'Operating System :: Microsoft :: Windows',
-        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: Implementation :: CPython',
         # uncomment if you test on these interpreters:
         # 'Programming Language :: Python :: Implementation :: PyPy',
@@ -69,20 +69,20 @@ setup(
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
-    python_requires='>=3.10.13',
+    python_requires='>=3.11.6',
     install_requires=[
-        'keri>=1.1.8',
-        'hio>=0.6.8',
+        'keri>=1.1.21',
+        'hio>=0.6.14',
         'multicommand>=1.0.0',
-        'blake3>=0.3.1',
-        'falcon>=3.1.0',
-        'http_sfv>=0.9.8'
+        'blake3>=0.4.1',
+        'falcon>=3.1.3',
+        'http_sfv>=0.9.9'
     ],
     extras_require={
     },
     tests_require=[
-        'coverage>=5.5',
-        'pytest>=6.2.5',
+        'coverage>=7.4.4',
+        'pytest>=8.1.1',
         'pytest-mock-server>=0.3.0'
     ],
     setup_requires=[
