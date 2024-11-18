@@ -9,6 +9,8 @@ import logging
 from keri import help
 from keri.app import keeping, habbing, directing, configing, oobiing
 from keri.app.cli.common import existing
+
+import sally
 from sally.core import serving
 
 help.ogler.level = logging.getLevelName(logging.INFO)
@@ -105,5 +107,6 @@ def launch(args, expire=0.0):
     doers += serving.setup(hby, alias=alias, httpPort=http_port, hook=hook, auth=auth,
                            listen=listen, timeout=timeout, retry=retry)
 
+    logger.info(f"Sally server version {sally.__version__} and database version {hby.db.version}")
     logger.info(f"Sally Server listening on {http_port}")
     directing.runController(doers=doers, expire=expire)
