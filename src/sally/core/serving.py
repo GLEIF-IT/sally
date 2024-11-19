@@ -55,7 +55,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     verifier = verifying.Verifier(hby=hby, reger=reger)
 
     cdb = basing.CueBaser(name=hby.name)
-    if env_var_to_bool("CLEAR_ESCROWS", False):
+    if env_var_to_bool("CLEAR_ESCROWS", True):
         logger.info("Clearing escrows")
         cdb.clearEscrows()
 
