@@ -19,8 +19,8 @@ run-agent:
 	@docker run -p 5921:5921 -p 5923:5923 --name agent gleif/sally:$(VERSION)
 
 .PHONY: push-all
-push-all:
-	@docker push gleif/sally --all-tags
+publish-sally:
+	@docker push gleif/sally:$(VERSION)
 
 .warn:
 	@echo -e ${RED}"$$DOCKER_WARNING"${NO_COLOUR}
