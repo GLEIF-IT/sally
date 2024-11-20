@@ -31,6 +31,6 @@ def test_baser():
     assert isinstance(baser.revk, subing.SerderSuber)
     assert isinstance(baser.ack, subing.SerderSuber)
 
-    assert baser.env.stat()['entries'] == 6
+    assert baser.env.stat()['entries'] == 7  # One for each DB above and then one for the version field, __version__
 
 

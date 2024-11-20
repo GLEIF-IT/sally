@@ -5,9 +5,11 @@ sally.core.basing module
 
 Database support
 """
+from keri import help
 from keri.core import coring, serdering
 from keri.db import dbing, subing
 
+logger = help.ogler.getLogger()
 
 class CueBaser(dbing.LMDBer):
     """
@@ -65,3 +67,11 @@ class CueBaser(dbing.LMDBer):
         self.ack = subing.SerderSuber(db=self, subkey="ack", klas=serdering.SerderACDC)
 
         return self.env
+
+    def clearEscrows(self):
+        """
+        Clear all credential escrows. Useful in testing to avoid many unneeded log messages or force reprocessing of presentations.
+        """
+        self.iss.trim()
+        self.rev.trim()
+        logger.info("Cleared iss and rev escrows")

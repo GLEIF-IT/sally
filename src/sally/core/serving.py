@@ -5,6 +5,7 @@ sally.core.serving module
 
 Endpoint service
 """
+import os
 
 import falcon
 from base64 import urlsafe_b64encode as encodeB64
@@ -52,7 +53,12 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     reger = viring.Reger(name=hab.name, db=hab.db, temp=False)
     rep = storing.Respondant(hby=hby, mbx=mbx)
     verifier = verifying.Verifier(hby=hby, reger=reger)
+
     cdb = basing.CueBaser(name=hby.name)
+    if env_var_to_bool("CLEAR_ESCROWS", True):
+        logger.info("Clearing escrows")
+        cdb.clearEscrows()
+
     comms = handling.Communicator(hby=hby,
                                   hab=hab,
                                   cdb=cdb,
@@ -110,6 +116,8 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
 
     return doers
 
+def env_var_to_bool(var_name, default=False):
+    return os.getenv(var_name, default).lower() in ["true", "1"]
 
 class TeveryCuery(doing.Doer):
 
