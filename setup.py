@@ -32,7 +32,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='sally',
-    version='0.9.2',  # also change in src/sally/__init__.py
+    version='0.9.3',  # also change in src/sally/__init__.py
     license='Apache Software License 2.0',
     description='vLEI Audit Reporting API',
     long_description="vLEI auditing server that responds to credential presentations by signaling via webhooks.",
