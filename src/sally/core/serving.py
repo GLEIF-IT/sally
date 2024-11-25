@@ -117,7 +117,12 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     return doers
 
 def env_var_to_bool(var_name, default=False):
-    return os.getenv(var_name, default).lower() in ["true", "1"]
+    val = os.getenv(var_name, default)
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.lower() in ["true", "1"]
+    return default
 
 class TeveryCuery(doing.Doer):
 
