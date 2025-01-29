@@ -8,9 +8,10 @@ EXN Message handling
 import datetime
 import json
 from base64 import urlsafe_b64encode as encodeB64
+from typing import List
 from urllib import parse
 
-from hio.base import doing
+from hio.base import doing, Doer
 from hio.core import http
 from hio.help import Hict
 from keri import help, kering
@@ -22,28 +23,28 @@ from sally.core import httping
 
 logger = help.ogler.getLogger()
 
+# vLEI ACDC schema SAIDs
 QVI_SCHEMA = "EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao"
 LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
 OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
 OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
 
-def loadHandlers(cdb, hby, notifier, parser):
-    """ Load handlers for the peer-to-peer challenge response protocol
+def loadHandlers(cdb, hby, notifier, parser) -> List[Doer]:
+    """Returns an array of Doers that are handlers for the peer-to-peer exchange messages.
+    Sally only uses the notification handler for ACDC presentations.
 
     Parameters:
         cdb (CueBaser): communication escrow database environment
         notifier (Notifier): Notifications
         parser (Parser)
-
     """
     return [PresentationProofHandler(cdb=cdb, hby=hby, notifier=notifier, parser=parser)]
 
 
 class PresentationProofHandler(doing.Doer):
-    """ Processor for responding to presentation proof peer to peer message.
-
-      The payload of the message is expected to have the following format:
+    """
+    Processor for responding to peer-to-peer (exn) notification messages of IPEX Grant presentation proofs.
 
     """
 
@@ -63,11 +64,64 @@ class PresentationProofHandler(doing.Doer):
         super(PresentationProofHandler, self).__init__()
 
     def recur(self, tyme):
-        """ Handle incoming messages by queueing presentation messages to be handled when credential is received
+        """
+        Handles incoming IPEX Grant presentations by processing the notification queue that is populated when IPEX Grant events occur, which is what happens when a cred
 
         Parameters:
             tymth (function): injected function wrapper closure returned by .tymen() of
                 Tymist instance. Calling tymth() returns associated Tymist .tyme.
+
+        The payload of the notification exn message is expected to have the following format:
+        {
+            "r": "/exn/ipex/grant",
+            "d": "SAID of the credential"
+        }
+        The IPEX Grant EXN is then loaded from the Exchanger database.
+        The EXN is expected to have the following format:
+        {
+            "e": { // embedded data in an exchange message.
+                "anc": // SerderKERI: anchoring interaction event of the issuance event. Has a reference to the issuance
+                {
+                    "v":"KERI10JSON00013a_",                                     // CESR version string of this event
+                    "t":"ixn",                                                   // KEL Event type
+                    "d":"EGhSHKIV5-nkeirdkqzqsvmeF1FXw_yH8NvPSAY1Rgyd",          // SAID digest of the anchoring interaction event
+                    "i":"EMl4RhuR_JxpiMd1N8DEJEhTxM3Ovvn9Xya8AN-tiUbl",          // Identifier of the issuer
+                    "s":"2",                                                     // Sequence number in the issuer's KEL of the anchoring interaction event.
+                    "p":"ED1kkh5_ECYriK-j2gSv6Zjr5way88XVhwRCxk5zoTRG",          // The previous event's digest
+                    "a":[ // The anchoring interaction event's seal. Anchors both the issuance TEL event below and the associated ACDC below to the issuer's KEL.
+                        {
+                            "i":"EElymNmgs1u0mSaoCeOtSsNOROLuqOz103V3-4E-ClXH",  // SAID digest of the ACDC
+                            "s": "0",                                            // Sequence number of the TEL event for the TEL associated with the ACDC anchored in this event.
+                            "d":"ECUw7AdWEE3fvr7dgbFDXj0CEZuJTTa_H8-iLLAmIUPO"   // SAID digest of the TEL event for the TEL associated with the ACDC anchored in this event.
+                        }
+                    ]
+                },
+                "iss": // SerderKERI: registry issuance TEL event body. Has a reference to the ACDC credential.
+                {
+                    "v":"KERI10JSON0000ed_",                             // CESR version string of this event
+                    "t":"iss",                                           // TEL Event type
+                    "d":"ECUw7AdWEE3fvr7dgbFDXj0CEZuJTTa_H8-iLLAmIUPO",  // SAID digest of the issuance TEL event.
+                    "i":"EElymNmgs1u0mSaoCeOtSsNOROLuqOz103V3-4E-ClXH",  // SAID digest of the ACDC. This refers to the ACDC below.
+                    "s":"0",                                             // Sequence number of the TEL issuance event
+                    "ri":"EB-u4VAF7A7_GR8PXJoAVHv5X9vjtXew8Yo6Z3w9mQUQ", // Registry identifier of the issuer
+                    "dt":"2021-06-27T21:26:21.233257+00:00"              // The datetime the issuance event was created
+                },
+                "acdc":  // SerderACDC: credential body. The iss event has a reference to this event
+                {
+                    "v":"ACDC10JSON000197_",                              // CESR version string of this ACDC. indicates serialization type and protocol type
+                    "d":"EElymNmgs1u0mSaoCeOtSsNOROLuqOz103V3-4E-ClXH",   // SAID digest of the ACDC
+                    "i":"EMl4RhuR_JxpiMd1N8DEJEhTxM3Ovvn9Xya8AN-tiUbl",   // Issuer identifier of the credential
+                    "ri":"EB-u4VAF7A7_GR8PXJoAVHv5X9vjtXew8Yo6Z3w9mQUQ",  // Registry identifier that issued this credential
+                    "s":"EMQWEcCnVRk1hatTNyK3sIykYSrrFvafX3bHQ9Gkk1kC",   // Schema identifier of the credential
+                    "a": { // The credential's attributes; the data the credential contains
+                        "d":"EO9_6NattzsFiO8Fw1cxjYmDjOsKKSbootn-wXn9S3iB",  // SAID digest of the attributes section
+                        "dt":"2021-06-27T21:26:21.233257+00:00",             // The datetime the credential was created
+                        "i":"EMl4RhuR_JxpiMd1N8DEJEhTxM3Ovvn9Xya8AN-tiUbl",  // The identifier of the credential's subject (issuee)
+                        "LEI":"254900OPPU84GM83MG36"                         // The Legal Entity Identifier of the credential's subject. This is the data for this credential, a QVI-like credential.
+                    }
+                }
+            }
+        }
         """
         for keys, notice in self.notifier.noter.notes.getItemIter():
             logger.info(f"Processing notice {notice}")
@@ -103,16 +157,13 @@ class PresentationProofHandler(doing.Doer):
 
 class Communicator(doing.DoDoer):
     """
-    Communicator is responsible for comminucating the receipt and successful verification
+    Communicator is responsible for communicating the receipt and successful verification
     of credential presentation and revocation messages from external third parties via
     web hook API calls.
-
-
     """
 
     def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0):
         """
-
         Create a communicator capable of persistent processing of messages and performing
         web hook calls.
 
@@ -125,7 +176,6 @@ class Communicator(doing.DoDoer):
             hook (str): web hook to call in response to presentations and revocations
             timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
             retry (float): retry delay (in seconds) for failed web hook attempts
-
         """
         self.hby = hby
         self.hab = hab
@@ -140,6 +190,10 @@ class Communicator(doing.DoDoer):
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
 
     def processPresentations(self):
+        """
+        Validate presentations move them to the "received" key/value area if its credential chain
+        validates and the credential is not revoked. Otherwise, remove the presentation from the escrow.
+        """
 
         for (said,), dater in self.cdb.iss.getItemIter():
             # cancel presentations that have been around longer than timeout
@@ -173,6 +227,9 @@ class Communicator(doing.DoDoer):
                     self.cdb.iss.rem(keys=(said,))
 
     def processRevocations(self):
+        """
+        Ensure revocation CESR data is fully received before moving it to the "revoked to be processed" key/value area.
+        """
 
         for (said,), dater in self.cdb.rev.getItemIter():
 
@@ -199,6 +256,10 @@ class Communicator(doing.DoDoer):
                 self.cdb.revk.pin(keys=(said, dater.qb64), val=creder)
 
     def processReceived(self, db, action):
+        """
+        Prepare the appropriate payload for issuances or revocations based on schema type and send
+        the payload in a request to the webhook URL.
+        """
 
         for (said, dates), creder in db.getItemIter():
             if said not in self.clients:
@@ -238,6 +299,7 @@ class Communicator(doing.DoDoer):
                         db.rem(keys=(said, dates))
 
     def processAcks(self):
+        """Once a webhook request is acknowledged then remove it from the ack queue."""
         for (said,), creder in self.cdb.ack.getItemIter():
             # TODO: generate EXN ack message with credential information
             logger.info(f"ACK for credential {said} will be sent to {creder.issuer}")
@@ -275,7 +337,7 @@ class Communicator(doing.DoDoer):
 
     def processEscrows(self):
         """
-        Process communication pipelines
+        Process communication pipelines for presentations, revocations, and webhook HTTP request acknowledgements.
 
         """
         self.processPresentations()
@@ -285,7 +347,9 @@ class Communicator(doing.DoDoer):
         self.processAcks()
 
     def request(self, said, resource, action, actor, data):
-        """ Generate and launch request to remote hook
+        """
+        Generate and launch HTTP request to remote webhook URL.
+        Adds custom Sally-Resource and Sally-Timestamp headers.
 
         Parameters:
             said (str): qb64 SAID of credential
@@ -293,7 +357,6 @@ class Communicator(doing.DoDoer):
             action (str): the action performed on he resource [iss|rev]
             actor (str): qualified b64 AID of sender of the event
             resource (str): the resource type that triggered the event
-
         """
         purl = parse.urlparse(self.hook)
         client = http.clienting.Client(hostname=purl.hostname, port=purl.port)
@@ -317,14 +380,21 @@ class Communicator(doing.DoDoer):
         path = purl.path or "/"
 
         keyid = encodeB64(self.hab.kever.serder.verfers[0].raw).decode('utf-8')
-        header, unq = httping.siginput(self.hab, "sig0", "POST", path, headers, fields=["Sally-Resource", "@method",
-                                                                                        "@path",
-                                                                                        "Sally-Timestamp"],
-                                       alg="ed25519", keyid=keyid)
+        header, unq = httping.siginput(
+            self.hab, "sig0", "POST", path, headers,
+            fields=[
+                "Sally-Resource",
+                "@method",
+                "@path",
+                "Sally-Timestamp"
+            ],
+            alg="ed25519",
+            keyid=keyid
+        )
 
         headers.extend(header)
-        signage = ending.Signage(markers=dict(sig0=unq), indexed=True, signer=self.hab.pre, ordinal=None, digest=None,
-                                 kind=None)
+        signage = ending.Signage(
+            markers=dict(sig0=unq), indexed=True, signer=self.hab.pre, ordinal=None, digest=None, kind=None)
 
         headers.extend(ending.signature([signage]))
 
@@ -346,7 +416,6 @@ class Communicator(doing.DoDoer):
 
         Raises:
             ValidationError: If credential was not issued from known valid issuer
-
         """
         if creder.schema != QVI_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
@@ -355,15 +424,19 @@ class Communicator(doing.DoDoer):
             raise kering.ValidationError("QVI credential not issued by known valid issuer")
 
     def validateLegalEntity(self, creder):
+        """Validate schema of LE credential and QVI chain"""
         if creder.schema != LE_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for LE credential {creder.said}")
 
         self.validateQVIChain(creder)
 
     def validateOfficialRoleAuth(self, creder):
+        """Validate schema of OOR Auth credential and the LE chain"""
         if creder.schema != OOR_AUTH_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
+        if creder is None or creder.edge is None:
+            raise kering.ValidationError(f"OOR Auth credential does not have expected 'le' edge")
         edges = creder.edge
         lesaid = edges["le"]["n"]
         le = self.reger.creds.get(lesaid)
@@ -373,9 +446,12 @@ class Communicator(doing.DoDoer):
         self.validateLegalEntity(le)
 
     def validateOfficialRole(self, creder):
+        """Validate OOR schema, the OOR Auth chain, and that the data attributes from the OOR Auth match the OOR credential data"""
         if creder.schema != OOR_SCHEMA:
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
+        if creder is None or creder.edge is None:
+            raise kering.ValidationError(f"OOR credential does not have expected 'auth' edge")
         edges = creder.edge
         asaid = edges["auth"]["n"]
         auth = self.reger.creds.get(asaid)
@@ -398,6 +474,9 @@ class Communicator(doing.DoDoer):
         self.validateOfficialRoleAuth(auth)
 
     def validateQVIChain(self, creder):
+        """Validate that the LE credential has the QVI edge and the QVI chain is valid"""
+        if creder is None or creder.edge is None:
+            raise kering.ValidationError(f"LE credential does not have expected 'qvi' edge")
         edges = creder.edge
         qsaid = edges["qvi"]["n"]
         qcreder = self.reger.creds.get(qsaid)
@@ -408,6 +487,7 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def qviPayload(creder):
+        """Creates a QVI credential payload to send to the webhook"""
         a = creder.sad["a"]
         data = dict(
             schema=creder.schema,
@@ -422,7 +502,10 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def entityPayload(creder):
+        """Creates a legal entity payload to send to the webhook"""
         a = creder.sad["a"]
+        if creder is None or creder.edge is None:
+            raise kering.ValidationError(f"LE credential does not have expected 'qvi' edge")
         edges = creder.edge
         qsaid = edges["qvi"]["n"]
         data = dict(
@@ -439,14 +522,21 @@ class Communicator(doing.DoDoer):
 
     @staticmethod
     def roleCredentialPayload(reger, creder):
+        """Creates an OOR credential payload to send to the webhook"""
         a = creder.sad["a"]
+        if creder is None or creder.edge is None:
+            raise kering.ValidationError(f"OOR credential does not have expected 'auth' edge")
         edges = creder.edge
         asaid = edges["auth"]["n"]
 
         auth = reger.creds.get(asaid)
+        if auth is None or auth.edge is None:
+            raise kering.ValidationError(f"OOR credential does not have expected 'le' edge")
         aedges = auth.edge
         lesaid = aedges["le"]["n"]
         qvi = reger.creds.get(lesaid)
+        if qvi is None or qvi.edge is None:
+            raise kering.ValidationError(f"OOR credential does not have expected 'qvi' edge")
         qedges = qvi.edge
         qsaid = qedges["qvi"]["n"]
 
@@ -467,6 +557,7 @@ class Communicator(doing.DoDoer):
         return data
 
     def revokePayload(self, creder):
+        """Creates a revocation payload to send to the webhook"""
         regk = creder.regi
         state = self.reger.tevers[regk].vcState(creder.said)
 
