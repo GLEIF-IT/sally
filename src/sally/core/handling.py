@@ -208,7 +208,7 @@ class Communicator(doing.DoDoer):
                 try:
                     regk = creder.regi
                     state = self.reger.tevers[regk].vcState(creder.said)
-                    if state is None or state.et not in (coring.Ilks.iss, coring.Ilks.bis):
+                    if state is None or state.et not in (kering.Ilks.iss, kering.Ilks.bis):
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
                     if creder.schema == QVI_SCHEMA:
                         self.validateQualifiedvLEIIssuer(creder)
@@ -248,10 +248,10 @@ class Communicator(doing.DoDoer):
             if state is None:  # received revocation before status.  probably an error but let it timeout
                 continue
 
-            elif state.et in (coring.Ilks.iss, coring.Ilks.bis):  # haven't received revocation event yet
+            elif state.et in (kering.Ilks.iss, kering.Ilks.bis):  # haven't received revocation event yet
                 continue
 
-            elif state.et in (coring.Ilks.rev, coring.Ilks.brv):  # revoked
+            elif state.et in (kering.Ilks.rev, kering.Ilks.brv):  # revoked
                 self.cdb.rev.rem(keys=(said,))
                 self.cdb.revk.pin(keys=(said, dater.qb64), val=creder)
 
@@ -421,7 +421,9 @@ class Communicator(doing.DoDoer):
             raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
 
         if not creder.issuer == self.auth:
-            raise kering.ValidationError("QVI credential not issued by known valid issuer")
+            logger.info("Creder has an issue: %s", creder.said)
+            logger.debug("Creder Body:\n%s\n", creder.pretty())
+            raise kering.ValidationError(f"QVI credential not issued by known valid issuer. Expected {self.auth} found {creder.issuer}")
 
     def validateLegalEntity(self, creder):
         """Validate schema of LE credential and QVI chain"""
@@ -483,7 +485,12 @@ class Communicator(doing.DoDoer):
         if qcreder is None:
             raise kering.ValidationError(f"QVI credential {qsaid} not found for credential {creder.said}")
 
-        self.validateQualifiedvLEIIssuer(qcreder)
+        try:
+            self.validateQualifiedvLEIIssuer(qcreder)
+        except kering.ValidationError as ex:
+            logger.info("QVI credential %s failed QVI validation: %s", qsaid, ex)
+            logger.debug("QVI credential body:\n%s\n", qcreder.pretty())
+            raise ex
 
     @staticmethod
     def qviPayload(creder):

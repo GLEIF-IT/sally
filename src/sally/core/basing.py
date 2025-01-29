@@ -74,4 +74,7 @@ class CueBaser(dbing.LMDBer):
         """
         self.iss.trim()
         self.rev.trim()
+        self.recv.trim()
+        self.revk.trim()
+        self.ack.trim()
         logger.info("Cleared iss and rev escrows")
