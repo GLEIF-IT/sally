@@ -12,7 +12,7 @@ from hio.base import doing, tyming
 from hio.core import http
 from hio.help import decking
 from keri.app import habbing, notifying
-from keri.core import coring, parsing, eventing
+from keri.core import coring, parsing, eventing, signing
 from keri.help import helping
 from keri.peer import exchanging
 from keri.vc import protocoling
@@ -24,7 +24,7 @@ import issuing
 
 
 def test_presentation_handler(seeder, mockHelpingNowUTC):
-    salt = coring.Salter(raw=b'abcdef0123456789').qb64
+    salt = signing.Salter(raw=b'abcdef0123456789').qb64
     with habbing.openHby(name="test", base="test", salt=salt) as hby:
         cdb = basing.CueBaser(name="test_cb")
         exc = exchanging.Exchanger(hby=hby, handlers=[])

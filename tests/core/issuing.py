@@ -11,6 +11,7 @@ import os
 
 from keri.app import habbing, signing
 from keri.core import coring, parsing, eventing, serdering
+from keri.core import signing as csigning
 from keri.core.eventing import SealEvent
 from keri.vdr import credentialing
 from keri.vdr import verifying
@@ -281,7 +282,7 @@ class CredentialIssuer:
 
 
 def openHab(name, temp, salt):
-    salt = coring.Salter(raw=salt).qb64
+    salt = csigning.Salter(raw=salt).qb64
 
     hby = habbing.Habery(name=name, base="", temp=temp, salt=salt)
     hab = hby.makeHab(name=name, icount=1, isith='1', ncount=1, nsith='1')

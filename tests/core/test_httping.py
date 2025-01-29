@@ -9,6 +9,7 @@ from base64 import urlsafe_b64decode as decodeB64
 
 from hio.help import Hict
 from http_sfv import Dictionary
+from keri import core
 from keri.app import habbing
 from keri.core import coring
 from keri.end import ending
@@ -18,7 +19,7 @@ from sally.core import httping
 
 def test_siginput(mockHelpingNowUTC):
     print()
-    with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
+    with habbing.openHab(name="test", base="test", temp=True, salt=b'0123456789abcdef') as (hby, hab):
         headers = Hict([
             ("Content-Type", "application/json"),
             ("Content-Length", "256"),
@@ -27,26 +28,30 @@ def test_siginput(mockHelpingNowUTC):
             ("Sally-Timestamp", "2022-09-24T00:05:48.196795+00:00"),
         ])
 
-        header, unq = httping.siginput(hab, "sig0", "POST", "/sally", headers, fields=["Sally-Resource", "@method",
-                                                                                       "@path",
-                                                                                       "Sally-Timestamp"],
-                                       alg="ed25519", keyid=hab.pre)
+        header, unq = httping.siginput(
+            hab, "sig0", "POST", "/sally", headers,
+            fields=[
+                "Sally-Resource",
+                "@method",
+                "@path",
+                "Sally-Timestamp"
+            ],
+            alg="ed25519", keyid=hab.pre)
 
         headers.extend(header)
         signage = ending.Signage(markers=dict(sig0=unq), indexed=False, signer=None, ordinal=None, digest=None,
                                  kind=None)
         headers.extend(ending.signature([signage]))
 
-        assert dict(headers) == {'Connection': 'close',
-                                 'Content-Length': '256',
-                                 'Content-Type': 'application/json',
-                                 'Sally-Resource': 'EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs',
-                                 'Sally-Timestamp': '2022-09-24T00:05:48.196795+00:00',
-                                 'Signature': 'indexed="?0";sig0="1G-ItA3IPA8g30--svDMxlWW7YG_6PFf1VsUaV445PLXDDM9tTL7P'
-                                              'vnEW9Uv8y2mwaGOdpIojvBbGMOzdVccCg=="',
-                                 'Signature-Input': 'sig0=("sally-resource" "@method" "@path" '
-                                                    '"sally-timestamp");created=1609459200;keyid="EIaGMMWJFPmtXznY1IIiK'
-                                                    'DIrg-vIyge6mBl2QV8dDjI3";alg="ed25519"'}
+        assert dict(headers) == {
+            'Content-Type': 'application/json',
+            'Content-Length': '256',
+            'Connection': 'close',
+            'Sally-Resource': 'EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs',
+            'Sally-Timestamp': '2022-09-24T00:05:48.196795+00:00',
+            'Signature-Input': 'sig0=("sally-resource" "@method" "@path" "sally-timestamp");created=1609459200;keyid="EIaGMMWJFPmtXznY1IIiKDIrg-vIyge6mBl2QV8dDjI3";alg="ed25519"',
+            'Signature': 'indexed="?0";sig0="1G-ItA3IPA8g30--svDMxlWW7YG_6PFf1VsUaV445PLXDDM9tTL7PvnEW9Uv8y2mwaGOdpIojvBbGMOzdVccCg=="'
+        }
 
         siginput = headers["Signature-Input"]
         signature = headers["Signature"]

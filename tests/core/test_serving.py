@@ -16,7 +16,7 @@ from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
 
 import issuing
-from sally.core import basing, serving, handling
+from sally.core import basing, handling, credentials
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,7 +56,7 @@ def test_tevery_cuery(seeder, mockHelpingNowUTC):
         cues = decking.Deck()
         serder = veventing.revoke(vcdig=creder.said, regk=creder.regi, dig=creder.said)
         cues.append(dict(kin="revoked", serder=serder))
-        tc = serving.TeveryCuery(cdb=cdb, reger=reger, cues=cues)
+        tc = credentials.TeveryCuery(cdb=cdb, reger=reger, cues=cues)
 
         limit = 1.0
         tock = 0.25
