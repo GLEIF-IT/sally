@@ -1,6 +1,6 @@
 .PHONY: build-sally
 
-VERSION=0.9.3
+VERSION=0.9.4
 
 define DOCKER_WARNING
 In order to use the multi-platform build enable the containerd image store
