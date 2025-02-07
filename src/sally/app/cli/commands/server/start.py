@@ -55,7 +55,6 @@ parser.add_argument('--config-file',
                     help="configuration filename override")
 parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
                     required=True)
-parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store_true")
 parser.add_argument("--loglevel", action="store", required=False, default=os.getenv("SALLY_LOG_LEVEL", "INFO"),
                     help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL")
 
@@ -75,8 +74,6 @@ def launch(args, expire=0.0):
     bran = args.bran
     http_port = args.http
     auth = args.auth
-
-    listen = args.listen
     timeout = args.escrow_timeout
     retry = args.retry_delay
 
@@ -112,7 +109,7 @@ def launch(args, expire=0.0):
     doers = [hbyDoer, *obl.doers]
 
     doers += serving.setup(hby, alias=alias, httpPort=http_port, hook=hook, auth=auth,
-                           listen=listen, timeout=timeout, retry=retry)
+                           timeout=timeout, retry=retry)
 
     logger.info(f"Sally server version {sally.__version__} and database version {hby.db.version}")
     logger.info(f"Sally Server listening on {http_port}")

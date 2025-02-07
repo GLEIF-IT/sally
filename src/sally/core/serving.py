@@ -29,7 +29,7 @@ from sally.core.monitoring import HealthEnd
 logger = help.ogler.getLogger()
 
 
-def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3):
+def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3):
     """ Setup serving package and endpoints
 
     Parameters:
@@ -38,7 +38,6 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
         httpPort (int): external port to listen on for HTTP messages
         hook (str): URL of external web hook to notify of credential issuance and revocations
         auth (str): alias or AID of external authority for contacts and credentials
-        listen (bool): flag indicating whether the agent listens persistently or polls mailboxes
         timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
         retry (int): retry delay (in seconds) for failed web hook attempts
 
@@ -54,8 +53,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     logger.info(f"\tCESR Qualifed Base64 Public Key:  {hab.kever.serder.verfers[0].qb64}")
     logger.info(f"\tPlain Base64 Public Key        :  {encodeB64(hab.kever.serder.verfers[0].raw).decode('utf-8')}")
 
-    # set up components to listen for credential presentations either in direct HTTP mode with HttpEnd
-    # or indirect mode with MailboxDirector
+    # set up components to listen for credential presentations in direct HTTP mode with HttpEnd
 
     reger = viring.Reger(name=hab.name, db=hab.db, temp=False)
     verifier = verifying.Verifier(hby=hby, reger=reger)
@@ -111,33 +109,20 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     httpServerDoer = http.ServerDoer(server=server)
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
+    # Set up HTTP endpoint for PUT-ing application/cesr streams to the SallyAgent at '/'
+    httpEnd = indirecting.HttpEnd(rxbs=parser.ims, mbx=mbx)
+    app.add_route('/', httpEnd)
+
+    # Health and metrics endpoint
     app.add_route("/health", HealthEnd(cdb=cdb))
 
     doers = [httpServerDoer, comms, tc]
-    if listen:
-        logger.info("Adding direct mode HTTP listener")
-        # reading notifications for received ipex grant exn messages
-        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser))
+    # reading notifications for received ipex grant exn messages
+    doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser))
 
-        # Set up HTTP endpoint for PUT-ing application/cesr streams to the SallyAgent at '/'
-        httpEnd = indirecting.HttpEnd(rxbs=parser.ims, mbx=mbx)
-        app.add_route('/', httpEnd)
-        sallyAgent = SallyAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
-        doers.append(sallyAgent)
-    else:
-        logger.info("Adding indirect mode mailbox listener")
-        mbd = indirecting.MailboxDirector(hby=hby,
-                                          exc=exc,
-                                          kvy=kvy,
-                                          tvy=tvy,
-                                          rvy=rvy,
-                                          verifier=verifier,
-                                          rep=rep,
-                                          topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate",
-                                                  "/challenge"])
-        # reading notifications for received ipex grant exn messages
-        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
-        doers.append(mbd)
+    # Long running Sally agent listening for presentations
+    sallyAgent = SallyAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
+    doers.append(sallyAgent)
 
     return doers
 
