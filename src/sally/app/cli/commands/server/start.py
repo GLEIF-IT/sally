@@ -28,35 +28,35 @@ parser.add_argument('-n', '--name',
                     action='store',
                     default="sally",
                     help="Name of controller. Default is sally.")
-parser.add_argument('-w', '--web-hook', help='Webhook address for outbound notifications of credential issuance or '
-                                             'revocation',
-                    action='store',
-                    required=True,
-                    default=None
-                    )
-parser.add_argument("--escrow-timeout", "-e", help="timeout (in minutes) for escrowed events that have not been "
-                                                   "delivered to the web hook.  Defaults to 10",
-                    default=10, type=int,
-                    action="store")
-parser.add_argument("--retry-delay", "-r", help="retry delay (in seconds) for failed web hook attempts",
-                    default=10, type=int,
-                    action="store")
-parser.add_argument('--base', '-b', help='additional optional prefix to file location of KERI keystore',
+parser.add_argument('-b', '--base', help='additional optional prefix to file location of KERI keystore',
                     required=False, default="")
-parser.add_argument('--alias', '-a', help='human readable alias for the new identifier prefix', required=True)
-parser.add_argument('--salt', '-s', help='qualified base64 salt for creating key pairs', required=False)
-parser.add_argument('--passcode', help='22 character encryption passcode for keystore (is not saved)',
-                    dest="bran", default=None)  # passcode => bran
-parser.add_argument("--config-dir", "-c", dest="configDir", help="directory override for configuration data")
-parser.add_argument('--config-file',
+parser.add_argument("-c", "--config-dir", dest="configDir", help="directory override for configuration data")
+parser.add_argument("-f", '--config-file',
                     dest="configFile",
                     action='store',
                     default=None,
                     help="configuration filename override")
+parser.add_argument('-a', '--alias', help='human readable alias for the new identifier prefix', required=True)
+parser.add_argument('-s', '--salt', help='qualified base64 salt for creating key pairs', required=False)
+parser.add_argument('--passcode', help='21 character encryption passcode for keystore (is not saved)',
+                    dest="bran", default=None)  # passcode => bran
+parser.add_argument('-w', '--web-hook', help='Webhook address for outbound notifications of credential issuance or revocation',
+                    action='store',
+                    required=True,
+                    default=None)
 parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
                     required=True)
-parser.add_argument("--loglevel", action="store", required=False, default=os.getenv("SALLY_LOG_LEVEL", "INFO"),
-                    help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL")
+parser.add_argument("-r", "--retry-delay", help="retry delay (in seconds) for failed web hook attempts",
+                    default=10, type=int,
+                    action="store")
+parser.add_argument("-e", "--escrow-timeout",
+                    help="timeout (in minutes) for escrowed events that have not been delivered to the web hook.  Defaults to 10",
+                    default=10, type=int,
+                    action="store")
+parser.add_argument("-l", "--loglevel", action="store",
+                    help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL",
+                    required=False,
+                    default=os.getenv("SALLY_LOG_LEVEL", "INFO"))
 
 
 def launch(args, expire=0.0):
