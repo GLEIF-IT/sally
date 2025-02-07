@@ -99,11 +99,6 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
-    rep = storing.Respondant(hby=hby, mbx=mbx)
-    mbd = indirecting.MailboxDirector(
-        hby=hby, exc=exc, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, rep=rep,
-        topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate", "/challenge"])  # topics to listen for messages on
-
     doers = [httpServerDoer, comms, tc]
     if listen:
         logger.info("Adding direct mode HTTP listener")
@@ -117,15 +112,12 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
         doers.append(sallyAgent)
     else:
         logger.info("Adding indirect mode mailbox listener")
-        mbd = indirecting.MailboxDirector(hby=hby,
-                                          exc=exc,
-                                          kvy=kvy,
-                                          tvy=tvy,
-                                          rvy=rvy,
-                                          verifier=verifier,
-                                          rep=rep,
-                                          topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate",
-                                                  "/challenge"])
+        mbd = indirecting.MailboxDirector(
+            hby=hby, exc=exc, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, rep=rep,
+            topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate", "/challenge"])  # topics to listen for messages on
+        # reading notifications for received ipex grant exn messages
+        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
+        doers.append(mbd)
 
     return doers
 
