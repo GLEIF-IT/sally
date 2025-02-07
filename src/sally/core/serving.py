@@ -15,11 +15,13 @@ from keri import help
 from keri.app import indirecting, storing, notifying
 from keri.core import routing, eventing
 from keri.end import ending
+from keri.help import nowIso8601
 from keri.peer import exchanging
 from keri.vdr import viring, verifying
 from keri.vdr.eventing import Tevery
 from keri.vc import protocoling
 
+import sally
 from sally.core import handling, basing
 from sally.core.credentials import TeveryCuery
 
@@ -47,7 +49,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
 
     logger.info(f"Using hab {hab.name}:{hab.pre}")
     logger.info(f"\tCESR Qualifed Base64 Public Key:  {hab.kever.serder.verfers[0].qb64}")
-    logger.info(f"\tPlain Base64 Public Key:          {encodeB64(hab.kever.serder.verfers[0].raw).decode('utf-8')}")
+    logger.info(f"\tPlain Base64 Public Key        :  {encodeB64(hab.kever.serder.verfers[0].raw).decode('utf-8')}")
     mbx = storing.Mailboxer(name=hby.name)
     reger = viring.Reger(name=hab.name, db=hab.db, temp=False)
     rep = storing.Respondant(hby=hby, mbx=mbx)
@@ -95,6 +97,7 @@ def setup(hby, *, alias, httpPort, hook, auth, listen=False, timeout=10, retry=3
     httpServerDoer = http.ServerDoer(server=server)
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
+    app.add_route("/health", HealthEnd(cdb=cdb))
 
     doers = [httpServerDoer, comms, tc]
     if listen:
@@ -123,3 +126,21 @@ def env_var_to_bool(var_name, default=False):
         return val.lower() in ["true", "1"]
     return default
 
+class HealthEnd:
+    """
+    Basic health check endpoint including a health message, Sally version, and operational metrics
+    """
+
+    def __init__(self, cdb):
+        """Adds the CueBaser to allow getting metric counts"""
+        self.cdb = cdb
+
+
+    def on_get(self, req, resp):
+        counts = self.cdb.getCounts()
+        resp.status = falcon.HTTP_OK
+        resp.media = {
+            "message": f"Health is okay. Time is {nowIso8601()}",
+            "version": f"{sally.__version__}",
+            "counts": counts
+        }

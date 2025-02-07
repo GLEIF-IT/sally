@@ -5,6 +5,7 @@ sally.cli.commands module
 """
 import argparse
 import logging
+import os
 
 from keri import help
 from keri.app import keeping, habbing, directing, configing, oobiing
@@ -43,6 +44,7 @@ parser.add_argument("--retry-delay", "-r", help="retry delay (in seconds) for fa
 parser.add_argument('--base', '-b', help='additional optional prefix to file location of KERI keystore',
                     required=False, default="")
 parser.add_argument('--alias', '-a', help='human readable alias for the new identifier prefix', required=True)
+parser.add_argument('--salt', '-s', help='qualified base64 salt for creating key pairs', required=False)
 parser.add_argument('--passcode', help='22 character encryption passcode for keystore (is not saved)',
                     dest="bran", default=None)  # passcode => bran
 parser.add_argument("--config-dir", "-c", dest="configDir", help="directory override for configuration data")
@@ -54,17 +56,21 @@ parser.add_argument('--config-file',
 parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
                     required=True)
 parser.add_argument('--listen', '-l', help='run SALLY in direct HTTP mode listening for events', action="store_true")
+parser.add_argument("--loglevel", action="store", required=False, default=os.getenv("SALLY_LOG_LEVEL", "INFO"),
+                    help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL")
 
 
 def launch(args, expire=0.0):
     base_formatter = logging.Formatter('%(asctime)s [sally] %(levelname)-8s %(message)s')
     base_formatter.default_msec_format = None
     help.ogler.baseConsoleHandler.setFormatter(base_formatter)
-    help.ogler.level = logging.getLevelName(logging.INFO)
+    help.ogler.level = logging.getLevelName(args.loglevel.upper())
+    logger.setLevel(help.ogler.level)
     help.ogler.reopen(name="sally", temp=True, clear=True)
 
     hook = args.web_hook
     name = args.name
+    salt = args.salt
     base = args.base
     bran = args.bran
     http_port = args.http
@@ -94,8 +100,9 @@ def launch(args, expire=0.0):
                                     temp=False,
                                     reopen=True,
                                     clear=False)
-
-        hby = habbing.Habery(name=name, base=base, bran=bran, cf=cf)
+        kwa = dict()
+        kwa["salt"] = salt
+        hby = habbing.Habery(name=name, base=base, bran=bran, cf=cf, **kwa)
     else:
         hby = existing.setupHby(name=name, base=base, bran=bran)
 

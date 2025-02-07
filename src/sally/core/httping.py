@@ -25,7 +25,7 @@ def siginput(hab, name, method, path, headers, fields, expires=None, nonce=None,
 
     Returns:
         header (dict): {'Signature-Input': 'value'} where value is RFC8941 compliant
-        (Structured Field Values for HTTP) formatted str of of Signature Input group.
+        (Structured Field Values for HTTP) formatted str of Signature Input group.
         sigers (Unqualified): unqualified base64 encoded signature
 
     """
