@@ -121,7 +121,7 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3):
     doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser))
 
     # Long running Sally agent listening for presentations
-    sallyAgent = SallyAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
+    sallyAgent = ReportingAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
     doers.append(sallyAgent)
 
     return doers
@@ -145,17 +145,17 @@ def env_var_to_bool(var_name, default=False):
     return default
 
 
-class SallyAgent(doing.DoDoer):
+class ReportingAgent(doing.DoDoer):
     """
-    Agent Doer for running the Sally service in direct HTTP mode rather than indirect mode.
+    Doer for running the reporting agent in direct HTTP mode rather than indirect mode.
 
-    Direct mode is used when presenting directly to Sally after resolving Sally as a Controller OOBI.
-    Indirect mode is used when presenting to Sally via a mailbox whether from a witness or a mailbox agent.
+    Direct mode is used when presenting directly to the reporting agent after resolving the reporting agent OOBI as a Controller OOBI.
+    Indirect mode is used when presenting to the reporting agent via a mailbox whether from a witness or a mailbox agent.
     """
 
     def __init__(self, hab, parser, kvy, tvy, rvy, exc, cues=None, **opts):
         """
-        Initializes the SallyAgent with the Sally identifier (Hab), parser, KEL, TEL, and Exchange message processor
+        Initializes the ReportingAgent with an identifier (Hab), parser, KEL, TEL, and Exchange message processor
         so that it can process incoming credential presentations.
         """
         self.hab = hab
@@ -178,7 +178,7 @@ class SallyAgent(doing.DoDoer):
         _ = (yield self.tock)
 
         if self.parser.ims:
-            logger.debug(f"Sally received:\n%s\n...\n", self.parser.ims[:1024])
+            logger.debug(f"ReportingAgent received:\n%s\n...\n", self.parser.ims[:1024])
         done = yield from self.parser.parsator(local=True)
         return done
 

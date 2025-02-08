@@ -29,6 +29,13 @@ LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
 OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
 OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
+type_to_name = {
+    QVI_SCHEMA: "QVI",
+    LE_SCHEMA: "LE",
+    OOR_AUTH_SCHEMA: "OOR Auth",
+    OOR_SCHEMA: "OOR"
+}
+
 
 def loadHandlers(cdb, hby, notifier, parser) -> List[Doer]:
     """Returns an array of Doers that are handlers for the peer-to-peer exchange messages.
@@ -54,8 +61,8 @@ class PresentationProofHandler(doing.Doer):
         Parameters:
             cdb (CueBaser): communication escrow database environment
             notifier(Notifier): to read notifications to processes exns
+            parser (Parser): to parse and process each message referred to in the notification
             **kwa (dict): keyword arguments passes to super Doer
-
         """
         self.cdb = cdb
         self.hby = hby
@@ -63,7 +70,7 @@ class PresentationProofHandler(doing.Doer):
         self.parser = parser
         super(PresentationProofHandler, self).__init__()
 
-    def recur(self, tyme):
+    def processNotes(self):
         """
         Handles incoming IPEX Grant presentations by processing the notification queue that is populated when IPEX Grant events occur, which is what happens when a cred
 
@@ -124,7 +131,7 @@ class PresentationProofHandler(doing.Doer):
         }
         """
         for keys, notice in self.notifier.noter.notes.getItemIter():
-            logger.info(f"Processing notice {notice}")
+            logger.info(f"Processing notice {notice.pretty()}")
             attrs = notice.attrs
             route = attrs['r']
 
@@ -152,6 +159,9 @@ class PresentationProofHandler(doing.Doer):
             # deleting wether its a grant or not, since we only process grant
             self.notifier.noter.notes.rem(keys=keys)
 
+    def recur(self, tyme):
+        """On each iteration processes Exchange EXN notifications which includes the IPEX Grant presentation notifications."""
+        self.processNotes()
         return False
 
 
@@ -188,6 +198,47 @@ class Communicator(doing.DoDoer):
         self.clients = dict()
 
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
+
+    def escrowDo(self, tymth, tock=1.0):
+        """ Process escrows of comms pipeline
+
+        Steps involve:
+           1. Sending local event with sig to other participants
+           2. Waiting for signature threshold to be met.
+           3. If elected and delegated identifier, send complete event to delegator
+           4. If delegated, wait for delegator's anchor
+           5. If elected, send event to witnesses and collect receipts.
+           6. Otherwise, wait for fully receipted event
+
+        Parameters:
+            tymth (function): injected function wrapper closure returned by .tymen() of
+                Tymist instance. Calling tymth() returns associated Tymist .tyme.
+            tock (float): injected initial tock value.  Default to 1.0 to slow down processing
+
+        """
+        # enter context
+        self.wind(tymth)
+        self.tock = tock
+        _ = (yield self.tock)
+
+        while True:
+            try:
+                self.processEscrows()
+            except Exception as e:
+                logger.error(e)
+
+            yield self.retry
+
+    def processEscrows(self):
+        """
+        Process communication pipelines for presentations, revocations, and webhook HTTP request acknowledgements.
+
+        """
+        self.processPresentations()
+        self.processRevocations()
+        self.processReceived(db=self.cdb.recv, action="iss")
+        self.processReceived(db=self.cdb.revk, action="rev")
+        self.processAcks()
 
     def processPresentations(self):
         """
@@ -278,6 +329,8 @@ class Communicator(doing.DoDoer):
                                                      " valid")
                 else:  # revocation of credential
                     data = self.revokePayload(creder)
+                logger.info(f"Sending {action} of {type_to_name[creder.schema]} to {self.hook} with SAID {said}")
+                logger.info(f"Payload: \n{json.dumps(data, indent=1)}\n")
 
                 self.request(creder.said, resource, action, actor, data)
                 continue
@@ -304,47 +357,6 @@ class Communicator(doing.DoDoer):
             # TODO: generate EXN ack message with credential information
             logger.info(f"ACK for credential {said} will be sent to {creder.issuer}")
             self.cdb.ack.rem(keys=(said,))
-
-    def escrowDo(self, tymth, tock=1.0):
-        """ Process escrows of comms pipeline
-
-        Steps involve:
-           1. Sending local event with sig to other participants
-           2. Waiting for signature threshold to be met.
-           3. If elected and delegated identifier, send complete event to delegator
-           4. If delegated, wait for delegator's anchor
-           5. If elected, send event to witnesses and collect receipts.
-           6. Otherwise, wait for fully receipted event
-
-        Parameters:
-            tymth (function): injected function wrapper closure returned by .tymen() of
-                Tymist instance. Calling tymth() returns associated Tymist .tyme.
-            tock (float): injected initial tock value.  Default to 1.0 to slow down processing
-
-        """
-        # enter context
-        self.wind(tymth)
-        self.tock = tock
-        _ = (yield self.tock)
-
-        while True:
-            try:
-                self.processEscrows()
-            except Exception as e:
-                logger.error(e)
-
-            yield self.retry
-
-    def processEscrows(self):
-        """
-        Process communication pipelines for presentations, revocations, and webhook HTTP request acknowledgements.
-
-        """
-        self.processPresentations()
-        self.processRevocations()
-        self.processReceived(db=self.cdb.recv, action="iss")
-        self.processReceived(db=self.cdb.revk, action="rev")
-        self.processAcks()
 
     def request(self, said, resource, action, actor, data):
         """
@@ -497,6 +509,7 @@ class Communicator(doing.DoDoer):
         """Creates a QVI credential payload to send to the webhook"""
         a = creder.sad["a"]
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
@@ -516,6 +529,7 @@ class Communicator(doing.DoDoer):
         edges = creder.edge
         qsaid = edges["qvi"]["n"]
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
@@ -548,6 +562,7 @@ class Communicator(doing.DoDoer):
         qsaid = qedges["qvi"]["n"]
 
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
@@ -569,6 +584,7 @@ class Communicator(doing.DoDoer):
         state = self.reger.tevers[regk].vcState(creder.said)
 
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             credential=creder.said,
             revocationTimestamp=state.dt

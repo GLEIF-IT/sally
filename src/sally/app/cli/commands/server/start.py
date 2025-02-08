@@ -14,49 +14,51 @@ from keri.app.cli.common import existing
 import sally
 from sally.core import serving
 
-help.ogler.level = logging.getLevelName(logging.INFO)
-logger = help.ogler.getLogger()
-
 parser = argparse.ArgumentParser(description='Launch SALLY micro-service')
 parser.set_defaults(handler=lambda args: launch(args),
                     transferable=True)
-parser.add_argument('-p', '--http',
-                    action='store',
-                    default=9723,
-                    help="Port on which to listen for OOBI requests.  Defaults to 9723")
-parser.add_argument('-n', '--name',
-                    action='store',
-                    default="sally",
-                    help="Name of controller. Default is sally.")
-parser.add_argument('-b', '--base', help='additional optional prefix to file location of KERI keystore',
-                    required=False, default="")
-parser.add_argument("-c", "--config-dir", dest="configDir", help="directory override for configuration data")
-parser.add_argument("-f", '--config-file',
-                    dest="configFile",
-                    action='store',
-                    default=None,
-                    help="configuration filename override")
-parser.add_argument('-a', '--alias', help='human readable alias for the new identifier prefix', required=True)
-parser.add_argument('-s', '--salt', help='qualified base64 salt for creating key pairs', required=False)
-parser.add_argument('--passcode', help='21 character encryption passcode for keystore (is not saved)',
-                    dest="bran", default=None)  # passcode => bran
-parser.add_argument('-w', '--web-hook', help='Webhook address for outbound notifications of credential issuance or revocation',
-                    action='store',
-                    required=True,
-                    default=None)
-parser.add_argument('--auth', help='AID or alias of authority for OOBIs and QVI credential issuer', action="store",
-                    required=True)
-parser.add_argument("-r", "--retry-delay", help="retry delay (in seconds) for failed web hook attempts",
-                    default=10, type=int,
-                    action="store")
-parser.add_argument("-e", "--escrow-timeout",
-                    help="timeout (in minutes) for escrowed events that have not been delivered to the web hook.  Defaults to 10",
-                    default=10, type=int,
-                    action="store")
-parser.add_argument("-l", "--loglevel", action="store",
-                    help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL",
-                    required=False,
-                    default=os.getenv("SALLY_LOG_LEVEL", "INFO"))
+parser.add_argument(
+    '-p', '--http', action='store', default=9723,
+    help="Port on which to listen for OOBI requests.  Defaults to 9723")
+parser.add_argument(
+    '-n', '--name', action='store', default="sally",
+    help="Name of controller. Default is sally.")
+parser.add_argument(
+    '-b', '--base', required=False, default="",
+    help='additional optional prefix to file location of KERI keystore')
+parser.add_argument(
+    "-c", "--config-dir", dest="configDir",
+    help="directory override for configuration data")
+parser.add_argument(
+    "-f", '--config-file', dest="configFile", action='store', default=None,
+    help="configuration filename override")
+parser.add_argument(
+    '-a', '--alias', required=True,
+    help='human readable alias for the new identifier prefix')
+parser.add_argument(
+    '-s', '--salt', required=False,
+    help='qualified base64 salt for creating key pairs')
+parser.add_argument(
+    '--passcode', dest="bran", default=None,
+    help='21 character encryption passcode for keystore (is not saved)')
+parser.add_argument(
+    '-w', '--web-hook', action='store', required=True, default=None,
+    help='Webhook address for outbound notifications of credential issuance or revocation')
+parser.add_argument(
+    '--auth', action="store", required=True,
+    help='AID or alias of authority for OOBIs and QVI credential issuer')
+parser.add_argument(
+    "-r", "--retry-delay", default=10, type=int, action="store",
+    help="retry delay (in seconds) for failed web hook attempts")
+parser.add_argument(
+    "-e", "--escrow-timeout", default=10, type=int, action="store",
+    help="timeout (in minutes) for escrowed events that have not been delivered to the web hook.  Defaults to 10")
+parser.add_argument(
+    "-l", "--loglevel", action="store", required=False, default=os.getenv("SALLY_LOG_LEVEL", "INFO"),
+    help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL")
+
+help.ogler.level = logging.getLevelName(logging.INFO)
+logger = help.ogler.getLogger()
 
 
 def launch(args, expire=0.0):
@@ -111,6 +113,5 @@ def launch(args, expire=0.0):
     doers += serving.setup(hby, alias=alias, httpPort=http_port, hook=hook, auth=auth,
                            timeout=timeout, retry=retry)
 
-    logger.info(f"Sally server version {sally.__version__} and database version {hby.db.version}")
-    logger.info(f"Sally Server listening on {http_port}")
+    logger.info(f"Sally Agent v{sally.__version__} listening on {http_port} with DB version {hby.db.version}")
     directing.runController(doers=doers, expire=expire)
