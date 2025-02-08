@@ -39,7 +39,7 @@ else:
 
 setup(
     name='sally',
-    version='0.10.0',  # also change in src/sally/__init__.py
+    version='1.0.0',  # also change in src/sally/__init__.py
     license='Apache Software License 2.0',
     description='vLEI Audit Reporting API',
     long_description=long_description,
@@ -95,7 +95,7 @@ setup(
         'pytest-mock-server>=0.3.2'
     ],
     setup_requires=[
-        'setuptools==78.0.2'
+        'setuptools>=78.0.2'
     ],
     entry_points={
         'console_scripts': [

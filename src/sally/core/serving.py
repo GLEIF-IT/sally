@@ -31,7 +31,7 @@ from sally.core.monitoring import HealthEnd
 
 logger = help.ogler.getLogger()
 
-def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=None):
+def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, direct=True, incept_args=None):
     """
     Setup components, HTTP endpoints, and MailboxDirector working with witnesses to receive events.
 
@@ -43,6 +43,7 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
         auth (str): alias or AID of external authority for contacts and credentials
         timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
         retry (int): retry delay (in seconds) for failed web hook attempts
+        direct (bool): listen for direct-mode messages on HTTP port or use indirect-mode mailbox
         incept_args (dict): arguments for incepting Sally's identifier if it does not exist
     """
     host = "0.0.0.0"
@@ -100,7 +101,7 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
     doers = [httpServerDoer, comms, tc]
-    if listen:
+    if direct:
         logger.info("Adding direct mode HTTP listener")
         # reading notifications for received ipex grant exn messages
         doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser))
@@ -108,8 +109,8 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
         # Set up HTTP endpoint for PUT-ing application/cesr streams to the SallyAgent at '/'
         httpEnd = indirecting.HttpEnd(rxbs=parser.ims, mbx=mbx)
         app.add_route('/', httpEnd)
-        sallyAgent = SallyAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
-        doers.append(sallyAgent)
+        reportingAgent = ReportingAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
+        doers.append(reportingAgent)
     else:
         logger.info("Adding indirect mode mailbox listener")
         mbd = indirecting.MailboxDirector(
@@ -167,17 +168,17 @@ def inception_config(name=None, base=None, alias=None, bran=None, incept_file=No
     icp_args.data = None
     return incept.mergeArgsWithFile(icp_args).__dict__
 
-class SallyAgent(doing.DoDoer):
+class ReportingAgent(doing.DoDoer):
     """
-    Agent Doer for running the Sally service in direct HTTP mode rather than indirect mode.
+    Doer for running the reporting agent in direct HTTP mode rather than indirect mode.
 
-    Direct mode is used when presenting directly to Sally after resolving Sally as a Controller OOBI.
-    Indirect mode is used when presenting to Sally via a mailbox whether from a witness or a mailbox agent.
+    Direct mode is used when presenting directly to the reporting agent after resolving the reporting agent OOBI as a Controller OOBI.
+    Indirect mode is used when presenting to the reporting agent via a mailbox whether from a witness or a mailbox agent.
     """
 
     def __init__(self, hab, parser, kvy, tvy, rvy, exc, cues=None, **opts):
         """
-        Initializes the SallyAgent with the Sally identifier (Hab), parser, KEL, TEL, and Exchange message processor
+        Initializes the ReportingAgent with an identifier (Hab), parser, KEL, TEL, and Exchange message processor
         so that it can process incoming credential presentations.
         """
         self.hab = hab
@@ -200,7 +201,7 @@ class SallyAgent(doing.DoDoer):
         _ = (yield self.tock)
 
         if self.parser.ims:
-            logger.debug(f"Sally received:\n%s\n...\n", self.parser.ims[:1024])
+            logger.debug(f"ReportingAgent received:\n%s\n...\n", self.parser.ims[:1024])
         done = yield from self.parser.parsator(local=True)
         return done
 
