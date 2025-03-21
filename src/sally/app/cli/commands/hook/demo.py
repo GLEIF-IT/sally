@@ -12,7 +12,7 @@ from hio.core import http
 from keri import help
 from keri.app import directing
 
-from sally.core import handling
+from sally.core import handling, httping
 
 logger = help.ogler.getLogger()
 
@@ -35,10 +35,7 @@ def launch(args, expire=0.0):
     httpPort = args.http
 
     app = falcon.App(
-        middleware=falcon.CORSMiddleware(
-            allow_origins='*',
-            allow_credentials='*',
-            expose_headers=['cesr-attachment', 'cesr-date', 'content-type']))
+        middleware=httping.cors_middleware())
     app.add_route("/", WebhookListener())
 
     server = http.Server(port=httpPort, app=app)

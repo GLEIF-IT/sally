@@ -18,7 +18,7 @@ from keri.peer import exchanging
 from keri.vc import protocoling
 from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
-from sally.core import handling, basing
+from sally.core import handling, basing, httping
 
 import issuing
 
@@ -150,7 +150,8 @@ def test_communicator(seeder, mockHelpingNowUTC):
                                  'issuer': 'EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ',
                                  'qviCredential': 'EIbjVgfyrIj_jVjpgZXu2D-FFwWIc-pCFWnNd3F_vrD2',
                                  'recipient': 'EI0QTANut9IcXuPDbr7la4JJrjhMZ-EEk5q7Ahds8qBa',
-                                 'schema': 'ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY'}}
+                                 'schema': 'ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY',
+                                 'type': 'LE'}}
 
         ims = issuing.share_credential(issr.qviHab, issr.qviRgy, issr.oorsaid)
         parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
@@ -203,7 +204,8 @@ def test_communicator(seeder, mockHelpingNowUTC):
                                  'personLegalName': 'John Wick',
                                  'qviCredential': 'EIbjVgfyrIj_jVjpgZXu2D-FFwWIc-pCFWnNd3F_vrD2',
                                  'recipient': 'EIf2fK7M9Mfd-Twv2Ig3n8PpGM_p976mciznHoknVPLs',
-                                 'schema': 'EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy'}}
+                                 'schema': 'EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy',
+                                 'type': 'OOR'}}
 
 
 def launch_mock_server(port=5999, msgs=None):
@@ -211,7 +213,7 @@ def launch_mock_server(port=5999, msgs=None):
         middleware=falcon.CORSMiddleware(
             allow_origins='*',
             allow_credentials='*',
-            expose_headers=['cesr-attachment', 'cesr-date', 'content-type']))
+            expose_headers=httping.cesr_headers()))
     app.add_route("/", MockListener(msgs=msgs))
 
     server = http.Server(port=port, app=app)
