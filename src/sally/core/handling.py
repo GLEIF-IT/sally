@@ -29,15 +29,25 @@ LE_SCHEMA = "ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY"
 OOR_AUTH_SCHEMA = "EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E"
 OOR_SCHEMA = "EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy"
 
+# makes log messages nicer
+type_to_name = {
+    QVI_SCHEMA: "QVI",
+    LE_SCHEMA: "LE",
+    OOR_AUTH_SCHEMA: "OOR Auth",
+    OOR_SCHEMA: "OOR"
+}
+
 
 def loadHandlers(cdb, hby, notifier, parser) -> List[Doer]:
-    """Returns an array of Doers that are handlers for the peer-to-peer exchange messages.
+    """
+    Returns an array of Doers that are handlers for the peer-to-peer exchange messages.
     Sally only uses the notification handler for ACDC presentations.
 
     Parameters:
         cdb (CueBaser): communication escrow database environment
+        hby (Habery): identifier database environment (master keystore)
         notifier (Notifier): Notifications
-        parser (Parser)
+        parser (Parser): to parse and process each message referred to in an EXN message
     """
     return [PresentationProofHandler(cdb=cdb, hby=hby, notifier=notifier, parser=parser)]
 
@@ -63,7 +73,7 @@ class PresentationProofHandler(doing.Doer):
         self.parser = parser
         super(PresentationProofHandler, self).__init__()
 
-    def recur(self, tyme):
+    def processNotes(self):
         """
         Handles incoming IPEX Grant presentations by processing the notification queue that is populated when IPEX Grant events occur, which is what happens when a cred
 
@@ -154,12 +164,19 @@ class PresentationProofHandler(doing.Doer):
 
         return False
 
+    def recur(self, tyme):
+        """
+        On each iteration process exchange (exn) notifications of IPEX Grant presentation notifications.
+        """
+        self.processNotes()
+        return False  # Loop infinitely - long-running Doer task
+
 
 class Communicator(doing.DoDoer):
     """
-    Communicator is responsible for communicating the receipt and successful verification
-    of credential presentation and revocation messages from external third parties via
-    web hook API calls.
+    Communicator is responsible for communicating to the webhook the receipt and successful
+    verification of credential presentation and revocation messages from external third parties via
+    an HTTP API call to the configured webhook URL.
     """
 
     def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0):
@@ -278,6 +295,9 @@ class Communicator(doing.DoDoer):
                                                      " valid")
                 else:  # revocation of credential
                     data = self.revokePayload(creder)
+
+                logger.info(f"Sending {action} of {type_to_name[creder.schema]} to {self.hook} with SAID {said}")
+                logger.info(f"Payload: \n{json.dumps(data, indent=1)}\n")
 
                 self.request(creder.said, resource, action, actor, data)
                 continue
@@ -497,6 +517,7 @@ class Communicator(doing.DoDoer):
         """Creates a QVI credential payload to send to the webhook"""
         a = creder.sad["a"]
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
@@ -516,6 +537,7 @@ class Communicator(doing.DoDoer):
         edges = creder.edge
         qsaid = edges["qvi"]["n"]
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
@@ -548,6 +570,7 @@ class Communicator(doing.DoDoer):
         qsaid = qedges["qvi"]["n"]
 
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             issuer=creder.issuer,
             issueTimestamp=a["dt"],
@@ -569,6 +592,7 @@ class Communicator(doing.DoDoer):
         state = self.reger.tevers[regk].vcState(creder.said)
 
         data = dict(
+            type=type_to_name[creder.schema],
             schema=creder.schema,
             credential=creder.said,
             revocationTimestamp=state.dt
