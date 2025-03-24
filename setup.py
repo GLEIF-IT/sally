@@ -95,7 +95,7 @@ setup(
         'pytest-mock-server>=0.3.2'
     ],
     setup_requires=[
-        'setuptools==77.0.3'
+        'setuptools==78.0.2'
     ],
     entry_points={
         'console_scripts': [
