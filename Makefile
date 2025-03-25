@@ -30,6 +30,7 @@ run-agent:
 .PHONY: push-all
 publish-sally:
 	@docker push $(VERSIONED_TAG)
+	@docker push $(IMAGE_TAG)
 
 .warn:
 	@echo -e ${RED}"$$DOCKER_WARNING"${NO_COLOUR}
