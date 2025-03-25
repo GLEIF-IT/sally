@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-FROM weboftrust/keri:1.1.22
-MAINTAINER "GLEIF"
+FROM weboftrust/keri:1.2.4
+LABEL maintainer="GLEIF"
 
 # Disable output bufferering any output
 ENV PYTHONUNBUFFERED=1

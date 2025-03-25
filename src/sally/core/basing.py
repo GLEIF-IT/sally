@@ -78,3 +78,23 @@ class CueBaser(dbing.LMDBer):
         self.revk.trim()
         self.ack.trim()
         logger.info("Cleared iss and rev escrows")
+
+    def getCounts(self):
+        """
+        Get counts of each database for metrics monitoring
+        """
+        snd  = len([said for (said,), prefixer in self.snd.getItemIter()])
+        iss  = len([said for (said,), dater in self.iss.getItemIter()])
+        rev  = len([said for (said,), dater in self.rev.getItemIter()])
+
+        recv = len([said for (said, dater_qb64), creder in self.recv.getItemIter()])
+        revk = len([said for (said, dater_qb64), creder in self.revk.getItemIter()])
+        ack  = len([said for (said,), creder in self.ack.getItemIter()])
+        return {
+            'senders': snd,
+            'iss': iss,
+            'rev': rev,
+            'recv': recv,
+            'revk': revk,
+            'ack': ack
+        }

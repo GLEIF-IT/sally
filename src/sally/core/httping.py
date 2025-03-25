@@ -8,6 +8,7 @@ HTTP utility
 from base64 import urlsafe_b64encode as encodeB64
 from collections import namedtuple
 
+import falcon
 from http_sfv import Dictionary
 from keri.help import helping
 
@@ -19,13 +20,23 @@ Inputage = namedtuple("Inputage", "name fields created keyid alg expires nonce c
 def normalize(param):
     return param.strip()
 
+def cors_middleware():
+    """Middleware to allow CORS requests from any origin."""
+    falcon.CORSMiddleware(
+        allow_origins='*',
+        allow_credentials='*',
+        expose_headers=cesr_headers())
+
+def cesr_headers():
+    """CESR HTTP headers to be exposed in CORS requests."""
+    return ['cesr-attachment', 'cesr-date', 'content-type']
 
 def siginput(hab, name, method, path, headers, fields, expires=None, nonce=None, alg=None, keyid=None, context=None):
     """ Create an HTTP Signature-Input Header
 
     Returns:
         header (dict): {'Signature-Input': 'value'} where value is RFC8941 compliant
-        (Structured Field Values for HTTP) formatted str of of Signature Input group.
+        (Structured Field Values for HTTP) formatted str of Signature Input group.
         sigers (Unqualified): unqualified base64 encoded signature
 
     """

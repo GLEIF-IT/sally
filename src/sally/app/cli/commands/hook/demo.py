@@ -12,7 +12,8 @@ from hio.core import http
 from keri import help
 from keri.app import directing
 
-from sally.core import handling
+from sally.core import handling, httping
+from sally.core.monitoring import HealthEnd
 
 logger = help.ogler.getLogger()
 
@@ -35,11 +36,9 @@ def launch(args, expire=0.0):
     httpPort = args.http
 
     app = falcon.App(
-        middleware=falcon.CORSMiddleware(
-            allow_origins='*',
-            allow_credentials='*',
-            expose_headers=['cesr-attachment', 'cesr-date', 'content-type']))
+        middleware=httping.cors_middleware())
     app.add_route("/", WebhookListener())
+    app.add_route("/health", HealthEnd())
 
     server = http.Server(port=httpPort, app=app)
     httpServerDoer = http.ServerDoer(server=server)
@@ -77,18 +76,18 @@ class WebhookListener:
             resp.status = falcon.HTTP_400
             return
         type = self._resolve_type(data["schema"])
-        if type == "OOR":
-            holder = data.get("recipient", "")
-            presentation = dict(
-                credential=data.get("credential", ""),
-                type=type,
-                issuer=body.get("actor", ""),
-                holder=holder,
-                LEI=data.get("LEI", ""),
-                personLegalName=data.get("personLegalName", ""),
-                officialRole=data.get("officialRole", ""),
-            )
-            self.received[holder] = presentation
+
+        holder = data.get("recipient", "")
+        presentation = dict(
+            credential=data.get("credential", ""),
+            type=type,
+            issuer=body.get("actor", ""),
+            holder=holder,
+            LEI=data.get("LEI", ""),
+            personLegalName=data.get("personLegalName", ""),
+            officialRole=data.get("officialRole", ""),
+        )
+        self.received[holder] = presentation
         resp.status = falcon.HTTP_202
 
     def _resolve_type(self, schema_said):
