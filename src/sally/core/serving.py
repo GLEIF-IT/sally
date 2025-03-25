@@ -46,8 +46,12 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
         incept_args = {}
     hab = hby.habByName(name=alias)
     if hab is None:
+        if incept_args["incept_file"] is None:
+            raise ValueError("incept file by arg --incept-file is required to create a new identifier")
         logger.info(f"Making new hab {alias} in Habery {incept_args.get('name', '')}")
-        hab = hby.makeHab(name=alias, **incept_args)
+        hab = hby.makeHab(name=alias, **inception_config(**incept_args))
+    else:
+        logger.info(f"Hab '{alias}' already exists, using...")
 
     logger.info(f"Using hab {hab.name}:{hab.pre}")
     logger.info(f"\tCESR Qualifed Base64 Public Key:  {hab.kever.serder.verfers[0].qb64}")
@@ -114,4 +118,33 @@ def env_var_to_bool(var_name, default=False):
     if isinstance(val, str):
         return val.lower() in ["true", "1"]
     return default
+
+def inception_config(name=None, base=None, alias=None, bran=None, incept_file=None, config_dir=None):
+    """
+    Inception configuration for Sally's identifier prefix.
+    Returns a dict of inception arguments for Sally's identifier prefix.
+
+    This uses an object so that it can be merged with the incept file configuration like the
+    multicommand args object by using object properties rather than dictionary keys, which is what
+    incept.mergeArgsWithFile expects.
+    """
+    class Object(object):
+        pass
+    icp_args = Object()
+    icp_args.name = name
+    icp_args.base = base
+    icp_args.alias = alias
+    icp_args.bran = bran
+    icp_args.file = incept_file if config_dir is None else os.path.join(config_dir, incept_file)
+    icp_args.transferable = True
+    icp_args.icount = None
+    icp_args.wits = []
+    icp_args.toad = None
+    icp_args.isith = None
+    icp_args.ncount = None
+    icp_args.nsith = None
+    icp_args.delpre = None
+    icp_args.est_only = False
+    icp_args.data = None
+    return incept.mergeArgsWithFile(icp_args).__dict__
 
