@@ -10,10 +10,12 @@ import os
 import falcon
 from base64 import urlsafe_b64encode as encodeB64
 
+from hio.base import doing
 from hio.core import http
 from hio.help import decking
 from keri import help
 from keri.app import indirecting, storing, notifying
+from keri.core import eventing, parsing, routing
 from keri.app.cli.commands import incept
 from keri.core import routing, eventing
 from keri.end import ending
@@ -22,12 +24,14 @@ from keri.vdr import viring, verifying
 from keri.vdr.eventing import Tevery
 from keri.vc import protocoling
 
+from sally.core import handling, basing
 from sally.core import handling, basing, monitoring, httping
 from sally.core.credentials import TeveryCuery
+from sally.core.monitoring import HealthEnd
 
 logger = help.ogler.getLogger()
 
-def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=None):
+def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, direct=True, incept_args=None):
     """
     Setup components, HTTP endpoints, and MailboxDirector working with witnesses to receive events.
 
@@ -39,8 +43,11 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
         auth (str): alias or AID of external authority for contacts and credentials
         timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
         retry (int): retry delay (in seconds) for failed web hook attempts
+        direct (bool): listen for direct-mode messages on HTTP port or use indirect-mode mailbox
         incept_args (dict): arguments for incepting Sally's identifier if it does not exist
     """
+    host = "0.0.0.0"
+    cues = decking.Deck()
     # make hab
     if incept_args is None:
         incept_args = {}
@@ -68,6 +75,7 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
 
     mbx = storing.Mailboxer(name=hby.name)
     exc = exchanging.Exchanger(hby=hby, handlers=[])
+    rep = storing.Respondant(hby=hby, mbx=mbx)
 
     cdb = basing.CueBaser(name=hby.name)
     clear_escrows(cdb)
@@ -84,21 +92,33 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
     tvy.registerReplyRoutes(router=rvy.rtr)
     tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues)
 
+    parser = parsing.Parser(framed=True, kvy=kvy, tvy=tvy, rvy=rvy, vry=verifier, exc=exc)
+
     comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=reger,
                                   auth=auth, hook=hook, timeout=timeout, retry=retry)
     app.add_route("/health", monitoring.HealthEnd(cdb=cdb))
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
-    rep = storing.Respondant(hby=hby, mbx=mbx)
-    mbd = indirecting.MailboxDirector(
-        hby=hby, exc=exc, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, rep=rep,
-        topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate", "/challenge"])  # topics to listen for messages on
-
     doers = [httpServerDoer, comms, tc]
-    # reading notifications for received ipex grant exn messages
-    doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
-    doers.append(mbd)
+    if direct:
+        logger.info("Adding direct mode HTTP listener")
+        # reading notifications for received ipex grant exn messages
+        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser))
+
+        # Set up HTTP endpoint for PUT-ing application/cesr streams to the SallyAgent at '/'
+        httpEnd = indirecting.HttpEnd(rxbs=parser.ims, mbx=mbx)
+        app.add_route('/', httpEnd)
+        reportingAgent = ReportingAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
+        doers.append(reportingAgent)
+    else:
+        logger.info("Adding indirect mode mailbox listener")
+        mbd = indirecting.MailboxDirector(
+            hby=hby, exc=exc, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, rep=rep,
+            topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate", "/challenge"])  # topics to listen for messages on
+        # reading notifications for received ipex grant exn messages
+        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
+        doers.append(mbd)
 
     return doers
 
@@ -148,3 +168,57 @@ def inception_config(name=None, base=None, alias=None, bran=None, incept_file=No
     icp_args.data = None
     return incept.mergeArgsWithFile(icp_args).__dict__
 
+class ReportingAgent(doing.DoDoer):
+    """
+    Doer for running the reporting agent in direct HTTP mode rather than indirect mode.
+
+    Direct mode is used when presenting directly to the reporting agent after resolving the reporting agent OOBI as a Controller OOBI.
+    Indirect mode is used when presenting to the reporting agent via a mailbox whether from a witness or a mailbox agent.
+    """
+
+    def __init__(self, hab, parser, kvy, tvy, rvy, exc, cues=None, **opts):
+        """
+        Initializes the ReportingAgent with an identifier (Hab), parser, KEL, TEL, and Exchange message processor
+        so that it can process incoming credential presentations.
+        """
+        self.hab = hab
+        self.parser = parser
+        self.kvy = kvy
+        self.tvy = tvy
+        self.rvy = rvy
+        self.exc = exc
+        self.cues = cues if cues is not None else decking.Deck()
+        doers = [doing.doify(self.msgDo), doing.doify(self.escrowDo)]
+        super().__init__(doers=doers, **opts)
+
+    def msgDo(self, tymth=None, tock=0.0):
+        """
+        Processes incoming messages from the parser which triggers the KEL, TEL, Router, and Exchange
+        message processor to process credential presentations.
+        """
+        self.wind(tymth)
+        self.tock = tock
+        _ = (yield self.tock)
+
+        if self.parser.ims:
+            logger.debug(f"ReportingAgent received:\n%s\n...\n", self.parser.ims[:1024])
+        done = yield from self.parser.parsator(local=True)
+        return done
+
+    def escrowDo(self, tymth=None, tock=0.0):
+        """
+        Processes KEL, TEL, Router, and Exchange message processor escrows.
+        This ensures that each component processes the messages parsed from the HttpEnd.
+        """
+        self.wind(tymth)
+        self.tock = tock
+        _ = (yield self.tock)
+
+        while True:
+            self.kvy.processEscrows()
+            self.rvy.processEscrowReply()
+            if self.tvy is not None:
+                self.tvy.processEscrows()
+            self.exc.processEscrow()
+
+            yield

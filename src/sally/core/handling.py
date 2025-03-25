@@ -64,8 +64,8 @@ class PresentationProofHandler(doing.Doer):
         Parameters:
             cdb (CueBaser): communication escrow database environment
             notifier(Notifier): to read notifications to processes exns
+            parser (Parser): to parse and process each message referred to in the notification
             **kwa (dict): keyword arguments passes to super Doer
-
         """
         self.cdb = cdb
         self.hby = hby
@@ -134,7 +134,7 @@ class PresentationProofHandler(doing.Doer):
         }
         """
         for keys, notice in self.notifier.noter.notes.getItemIter():
-            logger.info(f"Processing notice {notice}")
+            logger.info(f"Processing notice {notice.pretty()}")
             attrs = notice.attrs
             route = attrs['r']
 
