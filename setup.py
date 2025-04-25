@@ -39,7 +39,7 @@ else:
 
 setup(
     name='sally',
-    version='0.10.1',  # also change in src/sally/__init__.py
+    version='0.10.2',  # also change in src/sally/__init__.py
     license='Apache Software License 2.0',
     description='vLEI Audit Reporting API',
     long_description=long_description,
@@ -78,24 +78,24 @@ setup(
     ],
     python_requires='>=3.12.3',
     install_requires=[
-        'keri==1.2.6',
+        'cit-keri==1.2.7-rc1',
         'hio==0.6.14',
         'multicommand==1.0.0',
         'blake3==1.0.4',
         'falcon==4.0.2',
-        'http_sfv>=0.9.9'
+        'http_sfv==0.9.9'
     ],
     extras_require={
         'test': ['pytest', 'coverage', 'pytest-mock-server'],
         'docs': ['sphinx', 'sphinx-rtd-theme']
     },
     tests_require=[
-        'coverage>=7.7.1',
-        'pytest>=8.3.5',
-        'pytest-mock-server>=0.3.2'
+        'coverage==7.7.1',
+        'pytest==8.3.5',
+        'pytest-mock-server==0.3.2'
     ],
     setup_requires=[
-        'setuptools==78.1.0'
+        'setuptools==79.0.1'
     ],
     entry_points={
         'console_scripts': [
