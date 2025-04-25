@@ -81,8 +81,8 @@ setup(
         'cit-keri==1.2.7-rc1',
         'hio==0.6.14',
         'multicommand==1.0.0',
-        'blake3==1.0.4',
-        'falcon==4.0.2',
+        'blake3==0.4.1',
+        'falcon==3.1.3',
         'http_sfv==0.9.9'
     ],
     extras_require={
