@@ -15,7 +15,7 @@ from hio.help import decking
 from keri import help
 from keri.app import indirecting, storing, notifying
 from keri.app.cli.commands import incept
-from keri.core import routing, eventing
+from keri.core import routing, eventing, parsing
 from keri.end import ending
 from keri.peer import exchanging
 from keri.vdr import viring, verifying
@@ -24,10 +24,11 @@ from keri.vc import protocoling
 
 from sally.core import handling, basing, monitoring, httping
 from sally.core.credentials import TeveryCuery
+from sally.core.verifying import VerificationAgent
 
 logger = help.ogler.getLogger()
 
-def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=None):
+def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, direct=True, incept_args=None):
     """
     Setup components, HTTP endpoints, and MailboxDirector working with witnesses to receive events.
 
@@ -39,8 +40,10 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
         auth (str): alias or AID of external authority for contacts and credentials
         timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
         retry (int): retry delay (in seconds) for failed web hook attempts
+        direct (bool): listen for direct-mode messages on HTTP port or use indirect-mode mailbox
         incept_args (dict): arguments for incepting Sally's identifier if it does not exist
     """
+    cues = decking.Deck()
     # make hab
     if incept_args is None:
         incept_args = {}
@@ -68,6 +71,7 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
 
     mbx = storing.Mailboxer(name=hby.name)
     exc = exchanging.Exchanger(hby=hby, handlers=[])
+    rep = storing.Respondant(hby=hby, mbx=mbx)
 
     cdb = basing.CueBaser(name=hby.name)
     clear_escrows(cdb)
@@ -84,21 +88,33 @@ def setup(hby, *, alias, httpPort, hook, auth, timeout=10, retry=3, incept_args=
     tvy.registerReplyRoutes(router=rvy.rtr)
     tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues)
 
+    parser = parsing.Parser(framed=True, kvy=kvy, tvy=tvy, rvy=rvy, vry=verifier, exc=exc)
+
     comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=reger,
                                   auth=auth, hook=hook, timeout=timeout, retry=retry)
     app.add_route("/health", monitoring.HealthEnd(cdb=cdb))
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
-    rep = storing.Respondant(hby=hby, mbx=mbx)
-    mbd = indirecting.MailboxDirector(
-        hby=hby, exc=exc, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, rep=rep,
-        topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate", "/challenge"])  # topics to listen for messages on
-
     doers = [httpServerDoer, comms, tc]
-    # reading notifications for received ipex grant exn messages
-    doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
-    doers.append(mbd)
+    if direct:
+        logger.info("Adding direct mode HTTP listener")
+        # reading notifications for received ipex grant exn messages
+        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=parser))
+
+        # Set up HTTP endpoint for PUT-ing application/cesr streams to the SallyAgent at '/'
+        httpEnd = indirecting.HttpEnd(rxbs=parser.ims, mbx=mbx)
+        app.add_route('/', httpEnd)
+        agent = VerificationAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, exc=exc, cues=cues)
+        doers.append(agent)
+    else:
+        logger.info("Adding indirect mode mailbox listener")
+        mbd = indirecting.MailboxDirector(
+            hby=hby, exc=exc, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, rep=rep,
+            topics=["/receipt", "/replay", "/multisig", "/credential", "/delegate", "/challenge"])  # topics to listen for messages on
+        # reading notifications for received ipex grant exn messages
+        doers.extend(handling.loadHandlers(cdb=cdb, hby=hby, notifier=notifier, parser=mbd.parser))
+        doers.append(mbd)
 
     return doers
 

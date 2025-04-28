@@ -19,6 +19,9 @@ parser.set_defaults(handler=lambda args: launch(args),
                     transferable=True)
 
 parser.add_argument(
+    "-d", "--direct", action="store_true", default=True,
+    help="Listen for direct-mode messages on HTTP port.  Default is True")
+parser.add_argument(
     '-p', '--http', action='store', default=9723,
     help="Port on which to listen for OOBI requests.  Defaults to 9723")
 parser.add_argument(
@@ -81,6 +84,7 @@ def launch(args, expire=0.0):
     bran = args.bran
     http_port = args.http
     auth = args.auth
+    direct = args.direct
 
     timeout = args.escrow_timeout
     retry = args.retry_delay
@@ -116,7 +120,7 @@ def launch(args, expire=0.0):
 
     doers = [hbyDoer, *obl.doers]
     doers += serving.setup(hby, alias=alias, httpPort=http_port, hook=hook, auth=auth,
-                           timeout=timeout, retry=retry, incept_args=incept_args)
+                           timeout=timeout, retry=retry, direct=direct, incept_args=incept_args)
 
     logger.info(f"Sally Server v{sally.__version__} listening on {http_port} with DB version {hby.db.version}")
     directing.runController(doers=doers, expire=expire)
