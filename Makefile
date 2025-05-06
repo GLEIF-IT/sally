@@ -1,6 +1,6 @@
 .PHONY: build-sally
 
-VERSION=0.10.2
+VERSION=1.0.0-rc1
 REGISTRY=gleif
 IMAGE=sally
 IMAGE_TAG=$(REGISTRY)/$(IMAGE):latest
@@ -18,7 +18,6 @@ endef
 build-sally: .warn
 	@docker build \
 		--platform=linux/amd64,linux/arm64 \
-		--no-cache \
 		-f containers/sally.dockerfile \
 		-t $(VERSIONED_TAG) \
 		-t $(IMAGE_TAG) .

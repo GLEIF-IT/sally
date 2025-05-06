@@ -7,7 +7,7 @@ webhook URL.
 
 # Usage
 
-The below `sally server start` command shows how to use Sally.
+The below `sally server start` command shows how to use Sally, once it has been set up (see below for setup instructions).
 
 ```bash
 sally server start \
@@ -16,14 +16,8 @@ sally server start \
   --passcode VVmRdBTe5YCyLMmYRqTAi \
   --web-hook http://127.0.0.1:9923 \
   --auth EMHY2SRWuqcqlKv2tNQ9nBXyZYqhJ-qrDX70faMcGujF
-  --config-dir scripts \
-  --config-file sally-habery.json \
-  --incept-file sally-incept.json \
   --loglevel INFO
 ```
-
-You must specify both the keystore (Habery) configuration file and the identifier (Hab) inception file. The `--config-dir` argument applies to both the
-keystore and identifier files. For the keystore configuration the directory `keri/cf` is appended to the value of `--config-file` if it is not an absolute path.
 
 You can specify the `--salt` and `--passcode` arguments to set the salt and passcode for the identifier. If you do not specify these arguments, 
 Sally will use a random one by default.
@@ -167,7 +161,7 @@ technology(`pipenv` for example) for each repository.  Finally, many of the bash
 installation of `jq` running locally.
 
 
-## vLEI
+## ACDC schemas using the vLEI-server
 
 The vLEI server provides endpoints for Data OOBIs for the credential schema for the vLEI ecosystem.  To run the server,
 you must run:
@@ -179,7 +173,7 @@ vLEI-server -s schema/acdc -c samples/acdc -o samples/oobis
 
 And leave the server running to is accessible to Sally and the agents running from KERIpy.
 
-## KERIpy
+## Witnesses using KERIpy
 
 From KERIpy you will run 1 server that provide witnesses. In addition, you will run a shell script which uses `kli` to
 execute KERI commands to create identifiers and issue credentials.
@@ -211,82 +205,12 @@ KERI_SCRIPT_DIR=./scripts KERI_DEMO_SCRIPT_DIR=./scripts/demo ./scripts/demo/vLE
 Now that you have a sample vLEI ecosystem running you will need to configure and run the Sally server.  
 
 In order to start Sally you will need to either:
-1. Use the `--incept-file` and `--salt` arguments to instruct the `sally server start` command to create a new identifier, or
-2. Use the `kli init` and `kli incept` commands to create an AID for Sally to use.
+1. Use the `kli init` and `kli incept` commands to create an AID for Sally to use.
+2. (Not yet working) Use the `--incept-file` and `--salt` arguments to instruct the `sally server start` command to create a new identifier, or
 
 Both options require the following configuration files:
 
-### Configuration Files
-
-#### keystore (Habery) configuration file
-
-This configuration is keystore-wide, meaning available to all identifiers used in this keystore. We will only have one identifier in this
-keystore, the Sally identifier. Configuring this keystore (Habery) requires a configuration file set up similar to the following example. 
-The "iurls" section corresponds to "introduction URLs" and should contain the out-of-band identifier (OOBI) URLs for the witnesses that will be used.
-The "durls" section should contain "data URLs" or OOBI URLs for the vLEI ACDC credential schema files.
-
-This file must be located at the path specified by the combination of the `--config-dir` and `--config-file` arguments along with the
-path segment of "keri/cf" for an end result of "config dir" / keri / cf / "config file" unless an absolute path is specified for the `--config-file` argument
-in which case the absolute path to the file is used and the `--config-dir` argument is disregarded..
-
-```json
-{
-  "dt": "2022-10-31T12:59:57.823350+00:00",
-  "iurls": [
-    "http://127.0.0.1:5642/oobi/BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha/controller",
-    "http://127.0.0.1:5644/oobi/BIKKuvBwpmDVA4Ds-EpL5bt9OqPzWPja2LigFYZN2YfX/controller",
-    "http://127.0.0.1:5643/oobi/BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM/controller"
-  ],
-  "durls": [
-    "http://127.0.0.1:7723/oobi/EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy",
-    "http://127.0.0.1:7723/oobi/EH6ekLjSr8V32WyFbGe1zXjTzFs9PkTYmupJ9H65O14g",
-    "http://127.0.0.1:7723/oobi/EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E",
-    "http://127.0.0.1:7723/oobi/ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY",
-    "http://127.0.0.1:7723/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao",
-    "http://127.0.0.1:7723/oobi/EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw"
-  ]
-}
-```
-
-#### Identifier (Hab) Inception File
-
-Creating an identifier requires a configuration file set up similar to the following example. This file must be located at the path specified by
-the combination of the `--config-dir` and `--config-file` arguments for an end result of "config dir" / "config file" unless an absolute path is
-specified for the `--config-file` argument in which case the absolute path to the file is used and the `--config-dir` argument is disregarded.
-
-```json
-{
-  "transferable": true,
-  "wits": [
-    "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha"
-  ],
-  "toad": 1,
-  "icount": 1,
-  "ncount": 1,
-  "isith": "1",
-  "nsith": "1"
-}
-
-```
-
-### Option 1 - `sally server start` command
-
-The following command will start the Sally server with a new identifier and salt:
-
-```bash
-sally server start \
-  --name sally --alias sally \
-  --salt 0AD45YWdzWSwNREuAoitH_CC \
-  --passcode VVmRdBTe5YCyLMmYRqTAi \
-  --web-hook http://127.0.0.1:9923 \
-  --auth EMHY2SRWuqcqlKv2tNQ9nBXyZYqhJ-qrDX70faMcGujF
-  --config-dir scripts \
-  --config-file sally-habery.json \
-  --incept-file sally-incept.json \
-  --loglevel INFO
-```
-
-### Option 2 - `kli` commands
+### Option 1 - `kli` commands
  
 Creating an identifier with the `kli init` and `kli incept` commands requires the following two commands to be run from an activated 
 Python virtual environment that has `keripy` configured to run so that the `kli` command is available. 
@@ -317,7 +241,82 @@ If you require a sample web hook to receive the notifications from the Sally ser
 can run the sample hook server in a separate terminal with the following command. The above Sally command assumes this 
 server and port by default. 
 
-## Sample Web Hook
+### Option 2 (not yet working) - `sally server start` command
+
+You must specify both the keystore (Habery) configuration file and the identifier (Hab) inception file. The `--config-dir` argument applies to both the
+keystore and identifier files. For the keystore configuration the directory `keri/cf` is appended to the value of `--config-file` if it is not an absolute path.
+
+#### Configuration Files
+
+##### keystore (Habery) configuration file
+
+This configuration is keystore-wide, meaning available to all identifiers used in this keystore. We will only have one identifier in this
+keystore, the Sally identifier. Configuring this keystore (Habery) requires a configuration file set up similar to the following example. 
+The "iurls" section corresponds to "introduction URLs" and should contain the out-of-band identifier (OOBI) URLs for the witnesses that will be used.
+The "durls" section should contain "data URLs" or OOBI URLs for the vLEI ACDC credential schema files.
+
+This file must be located at the path specified by the combination of the `--config-dir` and `--config-file` arguments along with the
+path segment of "keri/cf" for an end result of "config dir" / keri / cf / "config file" unless an absolute path is specified for the `--config-file` argument
+in which case the absolute path to the file is used and the `--config-dir` argument is disregarded..
+
+```json
+{
+  "dt": "2022-10-31T12:59:57.823350+00:00",
+  "iurls": [
+    "http://127.0.0.1:5642/oobi/BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha/controller",
+    "http://127.0.0.1:5644/oobi/BIKKuvBwpmDVA4Ds-EpL5bt9OqPzWPja2LigFYZN2YfX/controller",
+    "http://127.0.0.1:5643/oobi/BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM/controller"
+  ],
+  "durls": [
+    "http://127.0.0.1:7723/oobi/EBNaNu-M9P5cgrnfl2Fvymy4E_jvxxyjb70PRtiANlJy",
+    "http://127.0.0.1:7723/oobi/EH6ekLjSr8V32WyFbGe1zXjTzFs9PkTYmupJ9H65O14g",
+    "http://127.0.0.1:7723/oobi/EKA57bKBKxr_kN7iN5i7lMUxpMG-s19dRcmov1iDxz-E",
+    "http://127.0.0.1:7723/oobi/ENPXp1vQzRF6JwIuS-mp2U8Uf1MoADoP_GqQ62VsDZWY",
+    "http://127.0.0.1:7723/oobi/EBfdlu8R27Fbx-ehrqwImnK-8Cm79sqbAQ4MmvEAYqao",
+    "http://127.0.0.1:7723/oobi/EEy9PkikFcANV1l7EHukCeXqrzT1hNZjGlUk7wuMO5jw"
+  ]
+}
+```
+
+##### Identifier (Hab) Inception File
+
+Creating an identifier requires a configuration file set up similar to the following example. This file must be located at the path specified by
+the combination of the `--config-dir` and `--config-file` arguments for an end result of "config dir" / "config file" unless an absolute path is
+specified for the `--config-file` argument in which case the absolute path to the file is used and the `--config-dir` argument is disregarded.
+
+```json
+{
+  "transferable": true,
+  "wits": [
+    "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha"
+  ],
+  "toad": 1,
+  "icount": 1,
+  "ncount": 1,
+  "isith": "1",
+  "nsith": "1"
+}
+
+```
+
+#### Sally Start Command with new Identifier
+
+The following command will start the Sally server with a new identifier and salt:
+
+```bash
+sally server start \
+  --name sally --alias sally \
+  --salt 0AD45YWdzWSwNREuAoitH_CC \
+  --passcode VVmRdBTe5YCyLMmYRqTAi \
+  --web-hook http://127.0.0.1:9923 \
+  --auth EMHY2SRWuqcqlKv2tNQ9nBXyZYqhJ-qrDX70faMcGujF
+  --config-dir scripts \
+  --config-file sally-habery.json \
+  --incept-file sally-incept.json \
+  --loglevel INFO
+```
+
+## Sample Web Hook - called after credential presentation
 ```bash
 sally hook demo
 ```

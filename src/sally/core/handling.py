@@ -134,7 +134,7 @@ class PresentationProofHandler(doing.Doer):
         }
         """
         for keys, notice in self.notifier.noter.notes.getItemIter():
-            logger.info(f"Processing notice {notice}")
+            logger.info(f"Processing notice {notice.pretty()}")
             attrs = notice.attrs
             route = attrs['r']
 
