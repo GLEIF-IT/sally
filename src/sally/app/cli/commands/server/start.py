@@ -82,7 +82,10 @@ def launch(args, expire=0.0):
     salt = args.salt
     base = args.base
     bran = args.bran
-    http_port = args.http
+    try:
+        http_port = int(args.http)
+    except ValueError:
+        raise ValueError(f"Invalid port number: {args.http}. Must be an integer.")
     auth = args.auth
     direct = args.direct
 
