@@ -19,7 +19,7 @@ parser.set_defaults(handler=lambda args: launch(args),
                     transferable=True)
 
 parser.add_argument(
-    "-d", "--direct", action="store_true", default=True,
+    "-d", "--direct", action="store_true", default=False,
     help="Listen for direct-mode messages on HTTP port.  Default is True")
 parser.add_argument(
     '-p', '--http', action='store', default=9723,
