@@ -217,6 +217,7 @@ class Communicator(doing.DoDoer):
             now = helping.nowUTC()
             logger.info(f"looking for credential {said}")
             if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
+                logger.info(f"presentation {said} timed out")
                 self.cdb.iss.rem(keys=(said,))
                 continue
 
@@ -237,10 +238,12 @@ class Communicator(doing.DoDoer):
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
                 except kering.ValidationError as ex:
-                    logger.error(f"credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
+                    logger.error(f"Credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
                 else:
+                    logger.info(f"Credential {said} from issuer {creder.issuer} passed validation")
                     self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
                 finally:
+                    logger.info(f"Removing presentation {said} from escrow after successful validation")
                     self.cdb.iss.rem(keys=(said,))
 
     def processRevocations(self):
@@ -296,7 +299,7 @@ class Communicator(doing.DoDoer):
                 else:  # revocation of credential
                     data = self.revokePayload(creder)
 
-                logger.info(f"Sending {action} of {type_to_name[creder.schema]} to {self.hook} with SAID {said}")
+                logger.info(f"Sending action {action} of {type_to_name[creder.schema]} to {self.hook} with SAID {said}")
                 logger.info(f"Payload: \n{json.dumps(data, indent=1)}\n")
 
                 self.request(creder.said, resource, action, actor, data)
