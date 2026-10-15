@@ -6,7 +6,7 @@ sally package
 
 """
 
-__version__ = '1.0.7'  # also change in setup.py
+__version__ = '1.0.8'  # also change in setup.py
 
 import logging
 
