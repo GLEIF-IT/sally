@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM gleif/keri:1.2.16@sha256:00cb71627b2cb5999d09b2934bd28b3fc762149ae9678fab38698fba7418cd06
+FROM gleif/keri:1.2.17@sha256:a0828c0f056a4abedfb9b475e95fe35fd16fceee2afb7f5f8dffc87a0a776ff2
 LABEL maintainer="GLEIF"
 ENV PYTHONUNBUFFERED=1
 COPY ./ /sally
