@@ -21,7 +21,7 @@ from keri.end import ending
 from keri.help import helping
 
 from sally import ogler, log_name
-from sally.core import httping
+from sally.core import httping, metrics as metricsmod
 
 logger = ogler.getLogger(log_name)
 
@@ -40,7 +40,7 @@ type_to_name = {
 }
 
 
-def loadHandlers(cdb, hby, notifier, parser) -> List[Doer]:
+def loadHandlers(cdb, hby, notifier, parser, metrics=None) -> List[Doer]:
     """
     Returns an array of Doers that are handlers for the peer-to-peer exchange messages.
     Sally only uses the notification handler for ACDC presentations.
@@ -50,6 +50,7 @@ def loadHandlers(cdb, hby, notifier, parser) -> List[Doer]:
         hby (Habery): identifier database environment (master keystore)
         notifier (Notifier): Notifications
         parser (Parser): parser for the grant's embedded events and ACDC
+        metrics (Metrics): shared metrics registry
     """
     return [
         PresentationProofHandler(
@@ -57,6 +58,7 @@ def loadHandlers(cdb, hby, notifier, parser) -> List[Doer]:
             hby=hby,
             notifier=notifier,
             parser=parser,
+            metrics=metrics,
         )
     ]
 
@@ -67,13 +69,14 @@ class PresentationProofHandler(doing.Doer):
 
     """
 
-    def __init__(self, cdb, hby, notifier, parser, **kwa):
+    def __init__(self, cdb, hby, notifier, parser, metrics=None, **kwa):
         """ Initialize instance
 
         Parameters:
             cdb (CueBaser): communication escrow database environment
             notifier(Notifier): to read notifications to processes exns
             parser (Parser): parser for the grant's embedded events and ACDC
+            metrics (Metrics): shared metrics registry; a private one is used when omitted
             **kwa (dict): keyword arguments passes to super Doer
 
         """
@@ -81,6 +84,7 @@ class PresentationProofHandler(doing.Doer):
         self.hby = hby
         self.notifier = notifier
         self.parser = parser
+        self.metrics = metrics if metrics is not None else metricsmod.Metrics()
         super(PresentationProofHandler, self).__init__()
 
     def processNotes(self):
@@ -170,6 +174,9 @@ class PresentationProofHandler(doing.Doer):
 
                 self.cdb.snd.pin(keys=(said,), val=prefixer)
                 self.cdb.iss.pin(keys=(said,), val=coring.Dater())
+            else:
+                logger.info(f"Ignoring notice with route {route}")
+                self.metrics.inc("sally_exceptions_total", kind=metricsmod.NOTICE_IGNORED)
 
             # deleting wether its a grant or not, since we only process grant
             self.notifier.noter.notes.rem(keys=keys)
@@ -191,7 +198,7 @@ class Communicator(doing.DoDoer):
     an HTTP API call to the configured webhook URL.
     """
 
-    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0):
+    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0, metrics=None):
         """
         Create a communicator capable of persistent processing of messages and performing
         web hook calls.
@@ -205,6 +212,7 @@ class Communicator(doing.DoDoer):
             hook (str): web hook to call in response to presentations and revocations
             timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
             retry (float): retry delay (in seconds) for failed web hook attempts
+            metrics (Metrics): shared metrics registry; a private one is used when omitted
         """
         self.hby = hby
         self.hab = hab
@@ -215,6 +223,7 @@ class Communicator(doing.DoDoer):
         self.timeout = timeout
         self.retry = retry
         self.clients = dict()
+        self.metrics = metrics if metrics is not None else metricsmod.Metrics()
 
         super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
 
@@ -230,6 +239,7 @@ class Communicator(doing.DoDoer):
             logger.info(f"looking for credential {said}")
             if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
                 logger.info(f"presentation {said} timed out")
+                self.metrics.inc("sally_exceptions_total", kind=metricsmod.PRESENTATION_TIMEOUT)
                 self.cdb.iss.rem(keys=(said,))
                 continue
 
@@ -239,6 +249,7 @@ class Communicator(doing.DoDoer):
                     regk = creder.regi
                     state = self.reger.tevers[regk].vcState(creder.said)
                     if state is None or state.et not in (kering.Ilks.iss, kering.Ilks.bis):
+                        self.metrics.inc("sally_exceptions_total", kind=metricsmod.CREDENTIAL_REVOKED)
                         raise kering.ValidationError(f"revoked credential {creder.said} being presented")
                     if creder.schema == QVI_SCHEMA:
                         self.validateQualifiedvLEIIssuer(creder)
@@ -247,15 +258,23 @@ class Communicator(doing.DoDoer):
                     elif creder.schema == OOR_SCHEMA:
                         self.validateOfficialRole(creder)
                     else:
+                        self.metrics.inc("sally_exceptions_total", kind=metricsmod.UNSUPPORTED_SCHEMA)
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
+                except KeyError as ex:
+                    # registry of the credential is not known to this instance
+                    self.metrics.inc("sally_exceptions_total", kind=metricsmod.PRESENTATION_UNKNOWN_REGISTRY)
+                    self.metrics.inc("sally_presentations_total", result="rejected")
+                    logger.error(f"Credential {creder.said} from issuer {creder.issuer} has unknown registry {ex}")
                 except kering.ValidationError as ex:
+                    self.metrics.inc("sally_presentations_total", result="rejected")
                     logger.error(f"Credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
                 else:
+                    self.metrics.inc("sally_presentations_total", result="accepted")
                     logger.info(f"Credential {said} from issuer {creder.issuer} passed validation")
                     self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
                 finally:
-                    logger.info(f"Removing presentation {said} from escrow after successful validation")
+                    logger.info(f"Removing presentation {said} from escrow")
                     self.cdb.iss.rem(keys=(said,))
 
     def processRevocations(self):
@@ -268,6 +287,8 @@ class Communicator(doing.DoDoer):
             # cancel revocations that have been around longer than timeout
             now = helping.nowUTC()
             if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
+                logger.info(f"revocation {said} timed out")
+                self.metrics.inc("sally_exceptions_total", kind=metricsmod.REVOCATION_TIMEOUT)
                 self.cdb.rev.rem(keys=(said,))
                 continue
 
@@ -276,7 +297,14 @@ class Communicator(doing.DoDoer):
                 continue
 
             regk = creder.regi
-            state = self.reger.tevers[regk].vcState(creder.said)
+            try:
+                tever = self.reger.tevers[regk]
+            except KeyError:
+                logger.error(f"revocation {said} is for unknown registry {regk}")
+                self.metrics.inc("sally_exceptions_total", kind=metricsmod.REVOCATION_UNKNOWN_REGISTRY)
+                self.cdb.rev.rem(keys=(said,))
+                continue
+            state = tever.vcState(creder.said)
             if state is None:  # received revocation before status.  probably an error but let it timeout
                 continue
 
@@ -306,6 +334,7 @@ class Communicator(doing.DoDoer):
                         data = self.roleCredentialPayload(self.reger, creder)
                     else:
                         logger.error(f"invalid credential with schema {creder.schema} said {creder.said} issuer {creder.issuer}")
+                        self.metrics.inc("sally_exceptions_total", kind=metricsmod.WEBHOOK_PAYLOAD_INVALID_SCHEMA)
                         raise kering.ValidationError("this will never happen because all credentials that get here are"
                                                      " valid")
                 else:  # revocation of credential
@@ -325,12 +354,17 @@ class Communicator(doing.DoDoer):
                 del self.clients[said]
 
                 if 200 <= response["status"] < 300:
+                    self.metrics.inc("sally_webhook_responses_total", action=action, outcome="success")
                     db.rem(keys=(said, dates))
                     self.cdb.ack.pin(keys=(said,), val=creder)
                 else:
+                    self.metrics.inc("sally_webhook_responses_total", action=action, outcome="failure")
+                    logger.error(f"webhook returned status {response['status']} for action {action} of {said}")
                     dater = coring.Dater(qb64=dates)
                     now = helping.nowUTC()
                     if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
+                        logger.error(f"dropping action {action} of {said}: webhook never acknowledged within timeout")
+                        self.metrics.inc("sally_exceptions_total", kind=metricsmod.WEBHOOK_DROPPED)
                         db.rem(keys=(said, dates))
 
     def processAcks(self):
@@ -368,6 +402,7 @@ class Communicator(doing.DoDoer):
             try:
                 self.processEscrows()
             except Exception as e:
+                self.metrics.inc("sally_exceptions_total", kind=metricsmod.ESCROW_LOOP_ERROR)
                 logger.error(e)
 
             yield self.retry
@@ -455,16 +490,19 @@ class Communicator(doing.DoDoer):
             ValidationError: If credential was not issued from known valid issuer
         """
         if creder.schema != QVI_SCHEMA:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.SCHEMA_MISMATCH)
             raise kering.ValidationError(f"invalid schema {creder.schema} for QVI credential {creder.said}")
 
         if not creder.issuer == self.auth:
             logger.info("Creder has an issue: %s", creder.said)
             logger.debug("Creder Body:\n%s\n", creder.pretty())
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.QVI_UNKNOWN_ISSUER)
             raise kering.ValidationError(f"QVI credential not issued by known valid issuer. Expected {self.auth} found {creder.issuer}")
 
     def validateLegalEntity(self, creder):
         """Validate schema of LE credential and QVI chain"""
         if creder.schema != LE_SCHEMA:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.SCHEMA_MISMATCH)
             raise kering.ValidationError(f"invalid schema {creder.schema} for LE credential {creder.said}")
 
         self.validateQVIChain(creder)
@@ -472,14 +510,17 @@ class Communicator(doing.DoDoer):
     def validateOfficialRoleAuth(self, creder):
         """Validate schema of OOR Auth credential and the LE chain"""
         if creder.schema != OOR_AUTH_SCHEMA:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.SCHEMA_MISMATCH)
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
         if creder is None or creder.edge is None:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.MISSING_EDGE)
             raise kering.ValidationError(f"OOR Auth credential does not have expected 'le' edge")
         edges = creder.edge
         lesaid = edges["le"]["n"]
         le = self.reger.creds.get(lesaid)
         if le is None:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.CHAINED_CREDENTIAL_MISSING)
             raise kering.ValidationError(f"LE credential {lesaid} not found for AUTH credential {creder.said}")
 
         self.validateLegalEntity(le)
@@ -487,26 +528,32 @@ class Communicator(doing.DoDoer):
     def validateOfficialRole(self, creder):
         """Validate OOR schema, the OOR Auth chain, and that the data attributes from the OOR Auth match the OOR credential data"""
         if creder.schema != OOR_SCHEMA:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.SCHEMA_MISMATCH)
             raise kering.ValidationError(f"invalid schema {creder.schema} for OOR credential {creder.said}")
 
         if creder is None or creder.edge is None:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.MISSING_EDGE)
             raise kering.ValidationError(f"OOR credential does not have expected 'auth' edge")
         edges = creder.edge
         asaid = edges["auth"]["n"]
         auth = self.reger.creds.get(asaid)
         if auth is None:
             logger.error(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.CHAINED_CREDENTIAL_MISSING)
             raise kering.ValidationError(f"AUTH credential {asaid} not found for OOR credential {creder.said}")
 
         if auth.sad["a"]["AID"] != creder.attrib["i"]:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.OOR_ATTRIBUTE_MISMATCH)
             raise kering.ValidationError(f"invalid issuee {creder.attrib['i']}  doesnt match AUTH value of "
                                          f"{auth.sad['a']['AID']} for OOR " f"credential {creder.said}")
 
         if auth.sad["a"]["personLegalName"] != creder.attrib["personLegalName"]:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.OOR_ATTRIBUTE_MISMATCH)
             raise kering.ValidationError(f"invalid personLegalNAme {creder.attrib['personLegalName']} for OOR "
                                          f"credential {creder.said}")
 
         if auth.sad["a"]["officialRole"] != creder.attrib["officialRole"]:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.OOR_ATTRIBUTE_MISMATCH)
             raise kering.ValidationError(f"invalid role {creder.attrib['officialRole']} for OOR credential"
                                          f" {creder.said}")
 
@@ -515,11 +562,13 @@ class Communicator(doing.DoDoer):
     def validateQVIChain(self, creder):
         """Validate that the LE credential has the QVI edge and the QVI chain is valid"""
         if creder is None or creder.edge is None:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.MISSING_EDGE)
             raise kering.ValidationError(f"LE credential does not have expected 'qvi' edge")
         edges = creder.edge
         qsaid = edges["qvi"]["n"]
         qcreder = self.reger.creds.get(qsaid)
         if qcreder is None:
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.CHAINED_CREDENTIAL_MISSING)
             raise kering.ValidationError(f"QVI credential {qsaid} not found for credential {creder.said}")
 
         try:
