@@ -71,3 +71,24 @@ def test_tevery_cuery(seeder, mockHelpingNowUTC):
         assert dater is not None
         assert dater.datetime == helping.nowUTC()  # mocked to return the same date
 
+
+def test_tevery_cuery_unknown_credential():
+    """A revocation cue for a credential never presented to this instance is skipped, not fatal."""
+    with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
+        cdb = basing.CueBaser(name="test_cb", temp=True)
+        reger = viring.Reger(temp=True)
+
+        unknown = "EElymNmgs1u0mSaoCeOtSsNOROLuqOz103V3-4E-ClXH"
+        regk = "EB-u4VAF7A7_GR8PXJoAVHv5X9vjtXew8Yo6Z3w9mQUQ"
+        cues = decking.Deck()
+        serder = veventing.revoke(vcdig=unknown, regk=regk, dig=unknown)
+        cues.append(dict(kin="revoked", serder=serder))
+        tc = credentials.TeveryCuery(cdb=cdb, reger=reger, cues=cues)
+
+        doist = doing.Doist(limit=1.0, tock=0.25)
+        doist.do(doers=[tc])  # raised AttributeError before the fix
+        assert doist.tyme == 1.0
+
+        assert len(cues) == 0
+        assert cdb.snd.get(keys=(unknown,)) is None
+        assert cdb.rev.get(keys=(unknown,)) is None
