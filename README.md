@@ -432,6 +432,28 @@ Use `increase()` or `rate()` in queries.
 - `sally_presentations_total{result="accepted"|"rejected"}`, `sally_webhook_responses_total{action,outcome}`,
   and `sally_revocations_total` for throughput.
 
+### Grafana dashboard
+
+`grafana/sally-dashboard.json` is a ready-made dashboard for Grafana 10.4 or later. Import it through
+*Dashboards -> New -> Import* and pick your Prometheus data source when prompted, or provision it by mounting the
+file into the Grafana container and pointing a provider at that directory:
+
+```yaml
+# /etc/grafana/provisioning/dashboards/sally.yaml
+apiVersion: 1
+providers:
+  - name: sally
+    folder: Sally
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+```
+
+When provisioning, the `${DS_PROMETHEUS}` placeholder must resolve, so either name the data source `Prometheus`
+and mark it default, or replace the placeholder with the data source UID before mounting. The dashboard has an
+*Instance* selector, so one import covers every Sally instance Prometheus scrapes. The top row is the "unknowns" view:
+each tile turns red when the count is non-zero.
+
 ### Suggested Grafana alerts
 
 ```promql
