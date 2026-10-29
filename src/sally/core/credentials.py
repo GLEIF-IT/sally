@@ -45,7 +45,10 @@ class TeveryCuery(doing.Doer):
                     said = serder.ked["i"]
                     creder = self.reger.creds.get(said)
                     if creder is None:
+                        # The ACDC was never presented to this instance so there is nothing
+                        # to report to the webhook. Skip it rather than crash the process.
                         logger.error(f"revocation received for unknown credential {said}")
+                        continue
 
                     prefixer = coring.Prefixer(qb64=creder.issuer)
                     saider = coring.Saider(qb64=said)
