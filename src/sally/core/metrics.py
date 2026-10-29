@@ -55,6 +55,7 @@ EXCEPTION_KINDS = (
 
 COUNTER = "counter"
 GAUGE = "gauge"
+UNLABELED_SERIES = ()
 
 # Every metric family Sally exposes. Declaring them up front means a typo in an inc() or set()
 # call raises KeyError instead of silently creating a new family, and fixes the output order.
@@ -133,6 +134,8 @@ class Metrics:
 
     @staticmethod
     def _key(labels):
+        if not labels:
+            return UNLABELED_SERIES
         return tuple(sorted(labels.items()))
 
     def inc(self, name, amount=1, **labels):
