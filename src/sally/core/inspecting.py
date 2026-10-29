@@ -114,11 +114,11 @@ def snKeyParts(key):
         return bytes(key).decode("utf-8", errors="replace"), None
 
 
-def telOnlyCredentials(reger):
-    """
-    Credentials this instance has TEL events for but no ACDC. This is the state left behind when a
-    revocation (with its issuance) arrives for a credential that was never presented here: the TEL
-    records it as revoked, but there is nothing to report to the webhook.
+def credTelOnly(reger):
+    """Return credential TEL state summaries whose ACDC bodies are not stored locally.
+
+    Registry-management TELs are excluded. When issuance and revocation arrive without the ACDC,
+    the credential TEL records the revoked state, but there is nothing to report to the webhook.
     """
     registries = {keys[-1] for keys, _ in reger.states.getItemIter()}
     prefixes = set()
@@ -166,7 +166,7 @@ def collect(db, reger, cdb, saids=None):
             continue
         credentials.append(credentialRecord(reger, creder))
 
-    telOnly = telOnlyCredentials(reger)
+    telOnly = credTelOnly(reger)
 
     telOutOfOrder = []
     for key, _ in reger.getTopItemIter(reger.oots):
