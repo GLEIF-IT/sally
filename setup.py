@@ -39,7 +39,7 @@ else:
 
 setup(
     name='sally',
-    version='1.0.8',  # also change in src/sally/__init__.py
+    version='1.0.9',  # also change in src/sally/__init__.py
     license='Apache-2.0',
     license_files=('LICENSE',),
     description='vLEI Audit Reporting API',
@@ -71,7 +71,7 @@ setup(
     ],
     project_urls={
         'Documentation': 'https://sally.readthedocs.io/',
-        'Changelog': 'https://sally.readthedocs.io/en/latest/changelog.html',
+        'Changelog': 'https://github.com/GLEIF-IT/sally/blob/main/CHANGELOG.md',
         'Issue Tracker': 'https://github.com/WebOfTrust/sally/issues',
     },
     keywords=[

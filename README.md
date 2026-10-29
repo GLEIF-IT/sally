@@ -1,6 +1,8 @@
 # SALLY
 vLEI Audit Reporting Agent
 
+See [CHANGELOG.md](CHANGELOG.md) for release history and upgrade notes.
+
 The Sally vLEI Audit Reporting Agent receives presentations of credentials and notices of revocation, verifies the
 structure and cryptographic integrity of the credential or revocation event and performs a POST to the configured 
 webhook URL.  
@@ -373,7 +375,7 @@ Trimmed sample scrape:
 ```text
 # HELP sally_info Sally build information. Always 1.
 # TYPE sally_info gauge
-sally_info{version="1.0.8"} 1
+sally_info{version="1.0.9"} 1
 # TYPE sally_pipeline_depth gauge
 sally_pipeline_depth{stage="iss"} 0
 sally_pipeline_depth{stage="recv"} 0
