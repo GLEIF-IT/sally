@@ -50,7 +50,12 @@ class TeveryCuery(doing.Doer):
                     if creder is None:
                         # The ACDC was never presented to this instance so there is nothing
                         # to report to the webhook. Skip it rather than crash the process.
+                        self.metrics.inc(
+                            "sally_exceptions_total",
+                            kind=metricsmod.REVOCATION_UNKNOWN_CREDENTIAL,
+                        )
                         logger.error(f"revocation received for unknown credential {said}")
+                        yield self.tock
                         continue
 
                     prefixer = coring.Prefixer(qb64=creder.issuer)
