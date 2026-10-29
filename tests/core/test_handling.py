@@ -129,7 +129,7 @@ def test_communicator(seeder, mockHelpingNowUTC):
 
         limit = 5.0
         tock = 0.25
-        doist = doing.Doist(limit=limit, tock=tock)
+        doist = doing.Doist(limit=limit, tock=tock, real=True)
         doist.do(doers=doers)
         assert doist.tyme == limit
 
@@ -178,7 +178,7 @@ def test_communicator(seeder, mockHelpingNowUTC):
 
         limit = 3.0
         tock = 0.25
-        doist = doing.Doist(limit=limit, tock=tock)
+        doist = doing.Doist(limit=limit, tock=tock, real=True)
         doist.do(doers=doers)
         assert doist.tyme == limit
 
