@@ -37,6 +37,8 @@ Pinned Hio supplies a socket-address tuple for WSGI's `REMOTE_ADDR`. The [WSGI c
 
 `src/sally/core/httping.py` provides a small `WsgiServer` subclass whose only override puts the peer IP string into that environment field. It changes request metadata, not credential verification or webhook payloads. The regression test exercises Hio's actual environment builder and response writer for HTTP 200 and HTTP 500.
 
+`tests/core/test_httping.py` additionally compares the adapter's environment with pinned Hio's own builder: every other field, including method, path, query, signature headers, body bytes, and WSGI flags, must match. It covers IPv4/IPv6 address values with and without `X-Forwarded-For`, and checks that the transport retains its original `(IP, port)` address. The intentional observable change is that Falcon's `remote_addr` and the peer entry in `access_route` contain the IP string. Custom middleware depending on Hio's old tuple would observe that correction too.
+
 ## Verification
 
 Run from the repository root:
