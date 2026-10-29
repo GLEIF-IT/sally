@@ -8,6 +8,7 @@ import os
 import multicommand
 
 from sally.app.cli import commands
+from sally.app import reporting
 
 
 def main():
@@ -19,7 +20,8 @@ def main():
         return
 
     try:
-        args.handler(args)
+        with reporting.session():
+            args.handler(args)
     except Exception as ex:
         if os.getenv('DEBUG_KLI'):
             import traceback

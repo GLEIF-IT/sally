@@ -9,12 +9,22 @@ from base64 import urlsafe_b64encode as encodeB64
 from collections import namedtuple
 
 import falcon
+from hio.core import http
 from http_sfv import Dictionary
 from keri.help import helping
 
 DEFAULTHEADERS = ('(created)', '(request-target)')
 
 Inputage = namedtuple("Inputage", "name fields created keyid alg expires nonce context")
+
+
+class WsgiServer(http.Server):
+    """Expose the peer IP as a WSGI string, rather than Hio's socket tuple."""
+
+    def buildEnviron(self, requestant):
+        environ = super().buildEnviron(requestant)
+        environ["REMOTE_ADDR"] = requestant.remoter.ca[0]
+        return environ
 
 
 def normalize(param):

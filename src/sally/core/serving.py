@@ -108,7 +108,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
 
     # HTTP Server
     app = falcon.App(middleware=httping.cors_middleware())
-    server = http.Server(port=httpPort, app=app)
+    server = httping.WsgiServer(port=httpPort, app=app)
     httpServerDoer = http.ServerDoer(server=server)
 
     # KEL, ACDC, exchange message, and reply message components

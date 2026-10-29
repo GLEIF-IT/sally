@@ -250,12 +250,13 @@ class Communicator(doing.DoDoer):
                         raise kering.ValidationError(f"credential {creder.said} is of unsupported schema"
                                                      f" {creder.schema} from issuer {creder.issuer}")
                 except kering.ValidationError as ex:
-                    logger.error(f"Credential {creder.said} from issuer {creder.issuer} failed validation: {ex}")
+                    logger.exception(f"Credential {creder.said} from issuer {creder.issuer} failed validation: {ex}",
+                                     extra={"sally_component": "presentation"})
                 else:
                     logger.info(f"Credential {said} from issuer {creder.issuer} passed validation")
                     self.cdb.recv.pin(keys=(said, dater.qb64), val=creder)
                 finally:
-                    logger.info(f"Removing presentation {said} from escrow after successful validation")
+                    logger.info(f"Removing presentation {said} from escrow")
                     self.cdb.iss.rem(keys=(said,))
 
     def processRevocations(self):
@@ -305,9 +306,8 @@ class Communicator(doing.DoDoer):
                     elif creder.schema == OOR_SCHEMA:
                         data = self.roleCredentialPayload(self.reger, creder)
                     else:
-                        logger.error(f"invalid credential with schema {creder.schema} said {creder.said} issuer {creder.issuer}")
-                        raise kering.ValidationError("this will never happen because all credentials that get here are"
-                                                     " valid")
+                        raise kering.ValidationError(
+                            f"invalid credential with schema {creder.schema} said {creder.said} issuer {creder.issuer}")
                 else:  # revocation of credential
                     data = self.revokePayload(creder)
 
@@ -330,8 +330,12 @@ class Communicator(doing.DoDoer):
                 else:
                     dater = coring.Dater(qb64=dates)
                     now = helping.nowUTC()
-                    if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
+                    dropped = now - dater.datetime > datetime.timedelta(minutes=self.timeout)
+                    if dropped:
                         db.rem(keys=(said, dates))
+                    message = "Webhook delivery dropped: action=%s status=%s" if dropped else "Webhook delivery failed: action=%s status=%s"
+                    logger.error(message, action, response["status"],
+                                 extra={"action": action, "status": response["status"], "dropped": dropped})
 
     def processAcks(self):
         """Once a webhook request is acknowledged then remove it from the ack queue."""
@@ -368,7 +372,7 @@ class Communicator(doing.DoDoer):
             try:
                 self.processEscrows()
             except Exception as e:
-                logger.error(e)
+                logger.exception(e, extra={"sally_component": "escrow"})
 
             yield self.retry
 

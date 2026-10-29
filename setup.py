@@ -87,6 +87,7 @@ setup(
         'http_sfv==0.9.9'
     ],
     extras_require={
+        'sentry': ['sentry-sdk==2.73.0'],
         'test': ['pytest', 'coverage', 'pytest-mock-server'],
         'docs': ['sphinx', 'sphinx-rtd-theme']
     },

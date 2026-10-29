@@ -59,4 +59,15 @@ jobs:
       - name: Run core Sally tests
         run: |
           pytest tests/
+          python tests/integration/check_reporting.py --output "$RUNNER_TEMP/reporting-base"
+        shell: bash
+
+      - name: Run tests with optional Sentry reporting installed
+        run: |
+          pip install '.[sentry]'
+          pip check
+          pytest tests/
+          python tests/integration/check_reporting.py --sentry --output "$RUNNER_TEMP/reporting-errors"
+          python tests/integration/check_reporting.py --sentry --logs-level WARNING --output "$RUNNER_TEMP/reporting-warning"
+          python tests/integration/check_reporting.py --sentry --logs-level INFO --output "$RUNNER_TEMP/reporting-info"
         shell: bash
