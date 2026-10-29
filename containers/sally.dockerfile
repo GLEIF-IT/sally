@@ -4,4 +4,5 @@ LABEL maintainer="GLEIF"
 ENV PYTHONUNBUFFERED=1
 COPY ./ /sally
 WORKDIR /sally
-RUN pip install . && pip check
+ARG SALLY_EXTRAS
+RUN pip install ".${SALLY_EXTRAS:+[$SALLY_EXTRAS]}" && pip check

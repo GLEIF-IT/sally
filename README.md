@@ -5,6 +5,15 @@ The Sally vLEI Audit Reporting Agent receives presentations of credentials and n
 structure and cryptographic integrity of the credential or revocation event and performs a POST to the configured 
 webhook URL.  
 
+## Optional Sentry error reporting
+
+Install `pip install '.[sentry]'` and set `SENTRY_DSN` for the Sally process to enable the optional error reporter.
+The default installation does not include the SDK. Without a DSN, the SDK stays unloaded even when installed.
+Set `SENTRY_ENVIRONMENT` and `SENTRY_RELEASE` to identify the deployment.
+Error reports include preceding logging breadcrumbs, which can contain credential data from Sally's existing messages.
+Optionally set `SALLY_SENTRY_LOG_LEVEL=WARNING` to also forward Python logs at that level and above to searchable Sentry Logs.
+See [configuration, limits, and the local verification guide](docs/observability.md).
+
 # Usage
 
 The below `sally server start` command shows how to use Sally, once it has been set up (see below for setup instructions).

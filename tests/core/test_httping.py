@@ -6,13 +6,43 @@ sally.core.httping module
 Testing httping utils
 """
 from base64 import urlsafe_b64decode as decodeB64
+from types import SimpleNamespace
 
+import falcon
+import pytest
+from hio.core import http
 from hio.help import Hict
 from http_sfv import Dictionary
 from keri.app import habbing
 from keri.end import ending
 
 from sally.core import httping
+
+
+@pytest.mark.parametrize("peer", [("192.0.2.10", 12345), ("2001:db8::10", 12345)])
+@pytest.mark.parametrize("forwarded", [None, "203.0.113.1, 198.51.100.2"])
+def test_wsgi_adapter_changes_only_peer_ip_metadata(peer, forwarded):
+    body = b'{"credential":"fixture"}'
+    headers = Hict([("Content-Type", "application/json"),
+                    ("Signature-Input", 'sig0=("@method" "@path")'),
+                    ("Signature", 'sig0="fixture-signature"')])
+    if forwarded:
+        headers["X-Forwarded-For"] = forwarded
+    request = SimpleNamespace(body=body, method="POST", path="/credential", query="mode=test",
+                              version=(1, 1), headers=headers, length=len(body),
+                              remoter=SimpleNamespace(ca=peer))
+    server = httping.WsgiServer(port=9723)
+    original = http.Server.buildEnviron(server, request)
+    adapted = server.buildEnviron(request)
+
+    falcon_request = falcon.Request(adapted)
+    assert falcon_request.remote_addr == peer[0]
+    assert falcon_request.access_route == (forwarded.split(", ") if forwarded else []) + [peer[0]]
+    assert request.remoter.ca == peer  # Transport still retains the port.
+    assert original.pop("REMOTE_ADDR") == peer
+    assert adapted.pop("REMOTE_ADDR") == peer[0]
+    assert original.pop("wsgi.input").read() == adapted.pop("wsgi.input").read() == body
+    assert adapted == original  # Includes method, path, query, headers, and WSGI flags.
 
 
 def test_siginput(mockHelpingNowUTC):
