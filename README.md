@@ -346,6 +346,133 @@ sally server start \
   --loglevel INFO
 ```
 
+## Monitoring
+
+Sally exposes two HTTP endpoints on the same port as the presentation listener (default 9723). Neither requires
+authentication, so restrict them to your monitoring network.
+
+| Path       | Format                           | Purpose                                                       |
+|------------|----------------------------------|---------------------------------------------------------------|
+| `/health`  | JSON                             | Liveness check with the Sally version and webhook pipeline depths |
+| `/metrics` | Prometheus text exposition 0.0.4 | Gauges and counters for Prometheus / Grafana                   |
+
+### Prometheus scrape configuration
+
+```yaml
+scrape_configs:
+  - job_name: sally
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['sally:9723']
+```
+
+### What `/metrics` reports
+
+Trimmed sample scrape:
+
+```text
+# HELP sally_info Sally build information. Always 1.
+# TYPE sally_info gauge
+sally_info{version="1.0.8"} 1
+# TYPE sally_pipeline_depth gauge
+sally_pipeline_depth{stage="iss"} 0
+sally_pipeline_depth{stage="recv"} 0
+# TYPE sally_credentials gauge
+sally_credentials{status="issued",type="LE"} 12
+sally_credentials{status="issued",type="unknown"} 1
+sally_credentials{status="unknown-registry",type="QVI"} 2
+# TYPE sally_tel_escrow gauge
+sally_tel_escrow{reason="anchorless"} 1
+# TYPE sally_exceptions_total counter
+sally_exceptions_total{kind="revocation_unknown_credential"} 3
+sally_exceptions_total{kind="unsupported_schema"} 0
+```
+
+**State gauges** are read from the databases on each scrape and describe what the instance currently holds:
+
+- `sally_credentials{type,status}`: every stored credential by vLEI type (`QVI`, `LE`, `OOR`, `OOR Auth`, or
+  `unknown` for an unrecognised schema) and TEL status (`issued`, `revoked`, `no-tel-events`, or `unknown-registry`).
+  Any `type="unknown"` or a status other than `issued`/`revoked` is a credential Sally cannot fully account for.
+- `sally_credentials_stored`, `sally_credentials_verified`, `sally_credentials_unverified`,
+  `sally_credentials_missing_edges`, `sally_registries`.
+- `sally_tel_only_credentials`: TEL events with no matching ACDC, the residue of revocations sent to this instance
+  for credentials that were presented to a different one.
+- `sally_acdc_escrow{reason}` and `sally_tel_escrow{reason}`: items parked in the KERI escrows
+  (`missing_registry`, `missing_chain`, `missing_schema`, `missing_signature`; `out_of_order`, `partial_witness`,
+  `anchorless`) plus `sally_tel_out_of_order_unknown` for out-of-order TEL events of credentials not held here.
+- `sally_pipeline_depth{stage}` and `sally_known_senders`: the webhook pipeline, the same numbers as `/health`.
+
+The per-credential classification walks the whole credential store, so it is cached for 30 seconds;
+`sally_metrics_snapshot_duration_seconds` and `sally_metrics_snapshot_age_seconds` make that cost visible.
+
+**Counters** are incremented in-process and reset when Sally restarts (`sally_process_start_time_seconds` shows when).
+Use `increase()` or `rate()` in queries.
+
+- `sally_exceptions_total{kind}`: every unknown or exceptional condition the pipeline hits, by kind:
+
+  | kind                             | Meaning                                                                      |
+  |----------------------------------|------------------------------------------------------------------------------|
+  | `revocation_unknown_credential`  | Revocation received for a credential never presented to this instance        |
+  | `revocation_unknown_registry`    | Revocation for a credential whose registry (TEL) is not known                |
+  | `revocation_timeout`             | Revocation escrow expired before the TEL revocation event arrived            |
+  | `presentation_unknown_registry`  | Presented credential's registry is not known                                 |
+  | `presentation_timeout`           | Presentation escrow expired before the credential verified                   |
+  | `unsupported_schema`             | Presented credential uses a schema Sally does not handle                     |
+  | `credential_revoked`             | A revoked credential was presented                                           |
+  | `qvi_unknown_issuer`             | QVI credential not issued by the configured `--auth` AID                     |
+  | `schema_mismatch`                | Credential in a chain has the wrong schema for its position                  |
+  | `missing_edge`                   | Credential lacks the expected `qvi`, `le`, or `auth` edge                    |
+  | `chained_credential_missing`     | An edge points at a credential this instance does not hold                   |
+  | `oor_attribute_mismatch`         | OOR credential attributes do not match its OOR Auth credential               |
+  | `webhook_payload_invalid_schema` | Could not build a webhook payload for the credential's schema                |
+  | `webhook_dropped`                | Webhook never returned 2xx within the escrow timeout; the event was dropped  |
+  | `escrow_loop_error`              | Unexpected exception in the escrow processing loop (see the log)             |
+  | `notice_ignored`                 | Exchange notification with a route other than `/exn/ipex/grant`              |
+
+- `sally_presentations_total{result="accepted"|"rejected"}`, `sally_webhook_responses_total{action,outcome}`,
+  and `sally_revocations_total` for throughput.
+
+### Grafana dashboard
+
+`grafana/sally-dashboard.json` is a ready-made dashboard for Grafana 10.4 or later. Import it through
+*Dashboards -> New -> Import* and pick your Prometheus data source when prompted, or provision it by mounting the
+file into the Grafana container and pointing a provider at that directory:
+
+```yaml
+# /etc/grafana/provisioning/dashboards/sally.yaml
+apiVersion: 1
+providers:
+  - name: sally
+    folder: Sally
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+```
+
+When provisioning, the `${DS_PROMETHEUS}` placeholder must resolve, so either name the data source `Prometheus`
+and mark it default, or replace the placeholder with the data source UID before mounting. The dashboard has an
+*Instance* selector, so one import covers every Sally instance Prometheus scrapes. The top row is the "unknowns" view:
+each tile turns red when the count is non-zero.
+
+### Suggested Grafana alerts
+
+```promql
+# a credential with an unrecognised schema is being held
+sally_credentials{type="unknown"} > 0
+
+# credentials whose issuance status cannot be determined
+sum by (status) (sally_credentials{status!~"issued|revoked"}) > 0
+
+# anything exceptional happened in the last hour, by kind
+increase(sally_exceptions_total[1h]) > 0
+
+# webhook deliveries are being dropped
+increase(sally_exceptions_total{kind="webhook_dropped"}[1h]) > 0
+```
+
+The metrics are counts only and never carry credential or identifier labels. The log lines written at each counted
+site name the SAIDs involved, so use the log to drill down from an alert to individual credentials.
+
 ## Sample Web Hook - called after credential presentation
 ```bash
 sally hook demo

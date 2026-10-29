@@ -3,6 +3,7 @@ from hio.help import decking
 from keri.core import coring
 
 from sally import ogler, log_name
+from sally.core import metrics as metricsmod
 
 logger = ogler.getLogger(log_name)
 
@@ -12,16 +13,18 @@ class TeveryCuery(doing.Doer):
     Processes credential revocation cues and records when a given credential was revoked in the local cue database (CueBaser).
     """
 
-    def __init__(self, cdb, reger, cues=None, **kwa):
+    def __init__(self, cdb, reger, cues=None, metrics=None, **kwa):
         """
         Parameters:
             cdb (CueBaser): instance of CueBaser database
             reger (Reger): Stores ACDC / TEL events
             cues (Deck): collection of events (cue) to process
+            metrics (Metrics): shared metrics registry; a private one is used when omitted
         """
         self.cdb = cdb
         self.reger = reger
         self.cues = cues if cues is not None else decking.Deck()
+        self.metrics = metrics if metrics is not None else metricsmod.Metrics()
 
         super(TeveryCuery, self).__init__(**kwa)
 
@@ -56,6 +59,7 @@ class TeveryCuery(doing.Doer):
 
                     self.cdb.snd.pin(keys=(saider.qb64,), val=prefixer)
                     self.cdb.rev.pin(keys=(saider.qb64,), val=now)
+                    self.metrics.inc("sally_revocations_total")
 
                 yield self.tock
 

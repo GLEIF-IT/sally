@@ -18,7 +18,7 @@ from keri.peer import exchanging
 from keri.vc import protocoling
 from keri.vdr import eventing as veventing, viring
 from keri.vdr import verifying
-from sally.core import handling, basing, httping
+from sally.core import handling, basing, httping, metrics
 
 import issuing
 
@@ -94,7 +94,9 @@ def test_communicator(seeder, mockHelpingNowUTC):
         vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
         msgs = decking.Deck()
         httpDoer = launch_mock_server(msgs=msgs)
-        comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=tvy.reger, hook=url, auth=root, retry=0.25)
+        m = metrics.Metrics()
+        comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=tvy.reger, hook=url, auth=root, retry=0.25,
+                                      metrics=m)
 
         seeder.load_schema(hby.db)
 
@@ -134,6 +136,9 @@ def test_communicator(seeder, mockHelpingNowUTC):
         assert doist.tyme == limit
 
         assert len(msgs) == 1
+        assert m.get("sally_presentations_total", result="accepted") == 1
+        assert m.get("sally_presentations_total", result="rejected") == 0
+        assert m.get("sally_webhook_responses_total", action="iss", outcome="success") == 1
         req = msgs.popleft()
         assert req.headers["SALLY-RESOURCE"] == creder.schema
         assert req.headers["SIGNATURE-INPUT"] == ('sig0=("sally-resource" "@method" "@path" '

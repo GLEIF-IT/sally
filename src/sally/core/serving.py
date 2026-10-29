@@ -25,7 +25,7 @@ from keri.vdr.eventing import Tevery
 from keri.vc import protocoling
 
 from sally import ogler, log_name
-from sally.core import handling, basing, monitoring, httping
+from sally.core import handling, basing, monitoring, httping, metrics as metricsmod
 from sally.core.credentials import TeveryCuery
 from sally.core.verifying import VerificationAgent
 
@@ -108,6 +108,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
 
     # HTTP Server
     app = falcon.App(middleware=httping.cors_middleware())
+    metrics = metricsmod.Metrics()
     server = http.Server(port=httpPort, app=app)
     httpServerDoer = http.ServerDoer(server=server)
 
@@ -132,7 +133,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
 
     tvy = Tevery(reger=verifier.reger, db=hby.db, local=False)
     tvy.registerReplyRoutes(router=rvy.rtr)
-    tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues)
+    tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues, metrics=metrics)
 
     parser = parsing.Parser(
         framed=True,
@@ -144,8 +145,9 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
     )
 
     comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=reger,
-                                  auth=auth, hook=hook, timeout=timeout, retry=retry)
+                                  auth=auth, hook=hook, timeout=timeout, retry=retry, metrics=metrics)
     app.add_route("/health", monitoring.HealthEnd(cdb=cdb))
+    app.add_route("/metrics", monitoring.MetricsEnd(metrics=metrics, db=hby.db, reger=reger, cdb=cdb))
 
     ending.loadEnds(app, hby=hby, default=hab.pre)
 
@@ -159,6 +161,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
                 hby=hby,
                 notifier=notifier,
                 parser=parser,
+                metrics=metrics,
             )
         )
 
@@ -179,6 +182,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
                 hby=hby,
                 notifier=notifier,
                 parser=mbd.parser,
+                metrics=metrics,
             )
         )
         doers.append(mbd)
