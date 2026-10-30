@@ -443,7 +443,7 @@ Trimmed sample scrape:
 ```text
 # HELP sally_info Sally build information. Always 1.
 # TYPE sally_info gauge
-sally_info{version="1.0.10"} 1
+sally_info{version="1.0.11"} 1
 # TYPE sally_pipeline_depth gauge
 sally_pipeline_depth{stage="iss"} 0
 sally_pipeline_depth{stage="recv"} 0
