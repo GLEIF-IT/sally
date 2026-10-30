@@ -33,6 +33,74 @@ sally server start \
 You can specify the `--salt` and `--passcode` arguments to set the salt and passcode for the identifier. If you do not specify these arguments, 
 Sally will use a random one by default.
 
+## Scheduler timing and retry configuration
+
+Sally reads the Habery JSON selected by `--config-dir` and `--config-file`,
+including when reopening a keystore. Put coroutine cadences under `tocks.verifier`
+and retry delays and timeouts under the root-level `verifier` object. Other
+`tocks` entries configure KERIpy components. Python callers creating a Habery
+should use `sally.core.scheduling.VerifierConfiger`.
+
+```json
+{
+  "tocks": {
+    "verifier": {"root": 0.002, "communicatorEscrow": 0.0}
+  },
+  "verifier": {"retryDelay": 1.0, "webhookRequestTimeout": 20.0}
+}
+```
+
+Merge these fields into your existing identifier and OOBI configuration.
+The [full timing example](scripts/keri/cf/sally-performance.json) is for local
+experiments. Lower cadences increase polling work; measure latency and idle CPU
+before adopting them.
+
+All tocks are seconds. Zero means the next parent scheduler cycle; both root
+tocks must be positive. File values must be finite, non-negative numbers.
+Booleans and unknown keys are rejected, even when an environment override exists.
+
+| `tocks.verifier` key | Environment variable             | Default (seconds) |
+| -------------------- | -------------------------------- | ----------------- |
+| `root`               | `SALLY_ROOT_TOCK`                | 0.03125           |
+| `bootstrapRoot`      | `SALLY_BOOTSTRAP_ROOT_TOCK`      | 0.03125           |
+| `bootstrap`          | `SALLY_BOOTSTRAP_TOCK`           | 0                 |
+| `bootstrapOobi`      | `SALLY_BOOTSTRAP_OOBI_TOCK`      | 0                 |
+| `bootstrapAuth`      | `SALLY_BOOTSTRAP_AUTH_TOCK`      | 0                 |
+| `httpServer`         | `SALLY_HTTP_SERVER_TOCK`         | 0                 |
+| `communicator`       | `SALLY_COMMUNICATOR_TOCK`        | 0                 |
+| `communicatorEscrow` | `SALLY_COMMUNICATOR_ESCROW_TOCK` | 0                 |
+| `webhookClient`      | `SALLY_WEBHOOK_CLIENT_TOCK`      | 0                 |
+| `presentation`       | `SALLY_PRESENTATION_TOCK`        | 0                 |
+| `revocation`         | `SALLY_REVOCATION_TOCK`          | 0                 |
+| `verifier`           | `SALLY_VERIFIER_TOCK`            | 0                 |
+| `verifierMsg`        | `SALLY_VERIFIER_MSG_TOCK`        | 0                 |
+| `verifierEscrow`     | `SALLY_VERIFIER_ESCROW_TOCK`     | 0                 |
+
+Precedence is explicit CLI argument, environment, file, then default. Effective
+settings are logged at startup. Root and HTTP tock environment settings also
+apply to `sally hook demo`.
+
+| `verifier` key          | Environment variable            | CLI override       | Default (seconds)                         |
+| ----------------------- | ------------------------------- | ------------------ | ----------------------------------------- |
+| `retryDelay`            | `SALLY_RETRY_DELAY`             | `--retry-delay`    | 10 for server CLI; 3 for Python setup API |
+| `escrowTimeout`         | `SALLY_ESCROW_TIMEOUT`          | `--escrow-timeout` | 600                                       |
+| `bootstrapTimeout`      | `SALLY_BOOTSTRAP_TIMEOUT`       | none               | 30                                        |
+| `webhookRequestTimeout` | `SALLY_WEBHOOK_REQUEST_TIMEOUT` | none               | 0 (disabled)                              |
+
+All durations, including `--escrow-timeout` and the Python `timeout` argument, are in seconds.
+Bootstrap and escrow timeouts must be positive. Retry delay and webhook request
+timeout accept zero. The CLI accepts fractional retry delays and escrow timeouts.
+
+All child cadences default to zero. `communicatorEscrow` controls processing
+independently of `retryDelay`, which applies only after failed webhook attempts.
+Retry deadlines do not survive a restart.
+
+`webhookRequestTimeout` bounds each HTTP attempt, including connection and full
+response. Zero disables it, allowing a silent request to remain in flight
+indefinitely. On expiry Sally closes the request and applies retry backoff or
+escrow expiry. Detection follows the communicator cadence. Timeouts increment
+`sally_exceptions_total{kind="webhook_request_timeout"}`.
+
 # Sample Web Hook Call
 
 All web hook POST HTTP calls will have the following HTTP header fields:
@@ -47,7 +115,7 @@ Sally-Timestamp: 2022-06-24T14:19:19.591808+00:00
 With Sally resource being the SAID of one of the following credentials: 
 
 | Schema                                       | Type                                       |
-|----------------------------------------------|--------------------------------------------|
+| -------------------------------------------- | ------------------------------------------ |
 | EWCeT9zTxaZkaC_3-amV2JtG6oUxNA36sCC0P5MI7Buw | Qualified vLEI Issuer vLEI Credential      |
 | EWJkQCFvKuyxZi582yJPb0wcwuW3VXmFNuvbQuBpgmIs | Legal Entity vLEI Credential               |
 | E2RzmSCFmG2a5U2OqZF-yUobeSYkW-a3FsN82eZXMxY0 | Official Organization Role vLEI Credential |
@@ -118,7 +186,7 @@ The presentation API will be a POST to the configured web hook URL and will cont
 The following table contains a description for every field in all the credential presentation payloads defined above:
 
 | Field Label                   | Description                                                                               |
-|-------------------------------|-------------------------------------------------------------------------------------------|
+| ----------------------------- | ----------------------------------------------------------------------------------------- |
 | action                        | the action that triggered the web hook call.  Value will be "iss" for issue presentations |
 | actor                         | The AID of the presenter of the credential                                                |
 | data                          | Attributes specific to the credential being presentedl                                    |
@@ -154,7 +222,7 @@ All revocation web hook requests will have the same format as follows:
 The following table contains a description for every field in all the credential revocation payloads defined above:
 
 | Field Label                 | Description                                                                                    |
-|-----------------------------|------------------------------------------------------------------------------------------------|
+| --------------------------- | ---------------------------------------------------------------------------------------------- |
 | action                      | the action that triggered the web hook call.  Value will be "rev" for revocation presentations |
 | actor                       | The AID of the presenter of the revocation                                                     |
 | data                        | Attributes specific to the credential being presentedl                                         |
@@ -353,10 +421,10 @@ sally server start \
 Sally exposes two HTTP endpoints on the same port as the presentation listener (default 9723). Neither requires
 authentication, so restrict them to your monitoring network.
 
-| Path       | Format                           | Purpose                                                       |
-|------------|----------------------------------|---------------------------------------------------------------|
+| Path       | Format                           | Purpose                                                           |
+| ---------- | -------------------------------- | ----------------------------------------------------------------- |
 | `/health`  | JSON                             | Liveness check with the Sally version and webhook pipeline depths |
-| `/metrics` | Prometheus text exposition 0.0.4 | Gauges and counters for Prometheus / Grafana                   |
+| `/metrics` | Prometheus text exposition 0.0.4 | Gauges and counters for Prometheus / Grafana                      |
 
 ### Prometheus scrape configuration
 
@@ -404,7 +472,7 @@ sally_exceptions_total{kind="unsupported_schema"} 0
   `anchorless`) plus `sally_tel_out_of_order_unknown` for out-of-order TEL events of credentials not held here.
 - `sally_pipeline_depth{stage}` and `sally_known_senders`: the webhook pipeline, the same numbers as `/health`.
 
-The per-credential classification walks the whole credential store, so it is cached for 30 seconds;
+The per-credential classification walks the whole credential store, so it is cached for 30;
 `sally_metrics_snapshot_duration_seconds` and `sally_metrics_snapshot_age_seconds` make that cost visible.
 
 **Counters** are incremented in-process and reset when Sally restarts (`sally_process_start_time_seconds` shows when).

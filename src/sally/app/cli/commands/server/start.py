@@ -7,13 +7,14 @@ import argparse
 import os
 
 from hio.base import doing
-from keri.app import keeping, habbing, configing
+from keri.app import keeping, habbing
 from keri.app.cli.common import existing
 
 import sally
 from sally import ogler, log_name, set_log_level
 from sally.app.bootstrapping import BootstrapRunner
-from sally.core import serving
+from sally.core import serving, scheduling, configing
+from sally.core.configing import VerifierConfiger
 
 parser = argparse.ArgumentParser(description='Launch Sally vLEI credential presentation receiver service.')
 parser.set_defaults(handler=lambda args: launch(args),
@@ -56,11 +57,11 @@ parser.add_argument(
     '--auth', action="store", required=True,
     help='AID or alias of authority for OOBIs and QVI credential issuer')
 parser.add_argument(
-    "-r", "--retry-delay", default=10, type=int, action="store",
-    help="retry delay (in seconds) for failed web hook attempts")
+    "-r", "--retry-delay", default=None, type=float, action="store",
+    help="failed webhook retry delay in seconds (default 10); independent of processing cadence")
 parser.add_argument(
-    "-e", "--escrow-timeout", default=10, type=int, action="store",
-    help="timeout (in minutes) for escrowed events that have not been delivered to the web hook.  Defaults to 10")
+    "-e", "--escrow-timeout", default=None, type=float, action="store",
+    help="timeout in seconds for escrowed events not delivered to the web hook (default 600)")
 parser.add_argument(
     "-l", "--loglevel", action="store", required=False, default=os.getenv("SALLY_LOG_LEVEL", "INFO"),
     help="Set log level to DEBUG | INFO | WARNING | ERROR | CRITICAL. Default is CRITICAL")
@@ -101,34 +102,41 @@ def launch(args, expire=0.0):
     }
 
     hby = init_habery(name=name, base=base, bran=bran, config_file=config_file,
-                      config_dir=config_dir, salt=salt)
+                      config_dir=config_dir, salt=salt, retry=retry, timeout=timeout)
     hab = serving.incept_if_new(hby, alias, incept_args)
 
     # setup doers
-    doers = serving.setupDoers(hby, hab, alias=alias, http_port=http_port, hook=hook, auth=auth,
-                           timeout=timeout, retry=retry, direct=direct, incept_args=incept_args)
+    doers = serving.setupDoers(
+        hby, hab, alias=alias, http_port=http_port, hook=hook, auth=auth,
+        timeout=timeout, retry=retry, direct=direct, incept_args=incept_args,
+        tocks=hby.sally_tocks, verifier_config=hby.verifier_config,
+    )
     logger.info(f"Sally Server v{sally.__version__} listening on {http_port} with DB version {hby.db.version}")
-    serving.run_doers(doers)
+    logger.info(f"Sally effective tocks (seconds): {hby.sally_tocks}")
+    logger.info(f"Sally verifier configuration: {hby.verifier_config}")
+    serving.run_doers(doers, expire=expire, tock=hby.sally_tocks["root"])
 
-def init_habery(name, base, bran, config_file, config_dir, salt):
+def init_habery(name, base, bran, config_file, config_dir, salt, *, retry=None, timeout=None):
     """Initialize or reopen the Habery (keystore)"""
     ks = keeping.Keeper(name=name, base=base, temp=False, reopen=True)
     aeid = ks.gbls.get('aeid')
 
-    cf = None
+    cf = VerifierConfiger(name=config_file if config_file is not None else name,
+                         base=base, headDirPath=config_dir,
+                         temp=False, reopen=True, clear=False)
     if aeid is None:
-        if config_file is not None:
-            cf = configing.Configer(name=config_file, base=base, headDirPath=config_dir,
-                                    temp=False, reopen=True, clear=False)
         habery_cfg = dict()
         habery_cfg["salt"] = salt if salt else None # When None causes Habery to randomize salt
         hby = habbing.Habery(name=name, base=base, bran=bran, cf=cf, ks=ks, **habery_cfg)
     else:
         ks.close() # existing.setupHby reopens, so close here to avoid LMDB conflict.
-        hby = existing.setupHby(name=name, base=base, bran=bran)
+        hby = existing.setupHby(name=name, base=base, bran=bran, cf=cf)
 
     # Resolve OOBIs for the Habery and the new Hab
-    bootstrap_doist = doing.Doist(limit=30.0, tock=0.03125, real=True)
-    runner = BootstrapRunner(hby=hby, tymth=bootstrap_doist.tymen())
+    hby.sally_tocks = scheduling.loadTocks(hby.cf)
+    hby.verifier_config = configing.loadVerifierConfig(hby.cf, retry=retry, timeout=timeout, default_retry=10.0)
+    bootstrap_doist = doing.Doist(limit=hby.verifier_config.bootstrap_timeout_seconds,
+                                 tock=hby.sally_tocks["bootstrapRoot"], real=True)
+    runner = BootstrapRunner(hby=hby, tymth=bootstrap_doist.tymen(), tocks=hby.sally_tocks)
     bootstrap_doist.do(doers=[runner])
     return hby
