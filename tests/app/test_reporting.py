@@ -18,6 +18,7 @@ def test_unconfigured_process_never_imports_sdk():
     env = dict(os.environ)
     env.pop("SENTRY_DSN", None)
     env["SALLY_SENTRY_LOG_LEVEL"] = "INFO"
+    env["SENTRY_TRACES_SAMPLE_RATE"] = "1.0"
     subprocess.run([sys.executable, "-c", """
 import sys, threading
 from sally.app import reporting
@@ -46,14 +47,17 @@ def transport_events(monkeypatch):
 
     events = []
     logs = []
+    transactions = []
 
     class MemoryTransport(Transport):
         def capture_envelope(self, envelope):
             events.extend(item.payload.json for item in envelope.items if item.type == "event")
+            transactions.extend(item.payload.json for item in envelope.items if item.type == "transaction")
             logs.extend(log for item in envelope.items if item.type == "log"
                         for log in item.payload.json["items"])
 
     MemoryTransport.logs = logs
+    MemoryTransport.transactions = transactions
     init = sdk.init
     previous = sdk.get_global_scope().client
     monkeypatch.setattr(sdk, "init", lambda **options: init(transport=MemoryTransport, **options))
@@ -61,6 +65,7 @@ def transport_events(monkeypatch):
     monkeypatch.setenv("SENTRY_DSN", "http://public@127.0.0.1:9/1")
     monkeypatch.setenv("SENTRY_ENVIRONMENT", "test")
     monkeypatch.delenv("SALLY_SENTRY_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SENTRY_TRACES_SAMPLE_RATE", raising=False)
     with sdk.isolation_scope() as scope:
         scope.clear()
         try:
@@ -221,6 +226,69 @@ def test_invalid_sentry_log_level_fails_before_application_work(monkeypatch):
             pytest.fail("Invalid configuration must not run the application")
 
 
+@pytest.mark.parametrize("rate", ["loud", "", "-0.1", "1.1", "nan", "inf"])
+def test_invalid_trace_rate_fails_before_application_work(monkeypatch, rate):
+    monkeypatch.setenv("SENTRY_DSN", "http://public@127.0.0.1:9/1")
+    monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", rate)
+    with pytest.raises(ValueError, match="SENTRY_TRACES_SAMPLE_RATE expects"):
+        with reporting.session():
+            pytest.fail("Invalid configuration must not run the application")
+
+
+@pytest.mark.parametrize("level,expected_reports", [("INFO", 0), ("DEBUG", 0), ("TRACE", 2)])
+def test_keripy_expected_registry_retries_only_report_when_trace_logging_emits_errors(captured, request, level, expected_reports):
+    import logging
+    from keri import kering
+    from keri.app import habbing
+    from keri.core import coring
+    from keri.vc import proving
+    from keri.vdr import verifying, viring
+
+    sdk, events = captured
+    original_level = verifying.logger.level
+    verifying.logger.setLevel(getattr(logging, level))
+    request.addfinalizer(lambda: verifying.logger.setLevel(original_level))
+    with habbing.openHab(name="expected-retry", temp=True) as (hby, hab), \
+            viring.openReger(name="expected-retry", temp=True) as reger:
+        verifier = verifying.Verifier(hby=hby, reger=reger)
+        digest = coring.Diger(ser=b"test-only-missing-registry").qb64
+        creder = proving.credential(schema=digest, issuer=hab.pre, data={}, status=digest)
+        with pytest.raises(kering.MissingRegistryError):
+            verifier.processCredential(creder, coring.Prefixer(qb64=hab.pre),
+                                       coring.Seqner(sn=0), coring.Saider(qb64=digest))
+        assert events == []
+        for _ in range(2):
+            verifier.processEscrows()
+            assert reger.mre.get(keys=(creder.said,)) is not None
+        assert len(events) == expected_reports
+        assert all(event["exception"]["values"][-1]["type"] == "MissingRegistryError" for event in events)
+
+
+def test_hio_task_completion_and_cancellation_do_not_report(captured):
+    from hio.base import doing
+
+    sdk, events = captured
+    completed = []
+    cancelled = []
+
+    def finish(tymth, tock=0.0, **opts):
+        yield tock
+        completed.append(True)
+        return True
+
+    def wait(tymth, tock=0.0, **opts):
+        try:
+            while True:
+                yield tock
+        finally:
+            cancelled.append(True)
+
+    doing.Doist(limit=0.1).do(doers=[doing.doify(finish), doing.doify(wait)])
+    assert completed == [True]
+    assert cancelled == [True]
+    assert events == []
+
+
 def test_startup_failure_excludes_passcode_and_salt(transport_events, monkeypatch):
     from sally.app.cli.commands.server import start
     sdk, events, transport = transport_events
@@ -244,30 +312,47 @@ def test_startup_failure_excludes_passcode_and_salt(transport_events, monkeypatc
     assert any(frame["function"] == "launch" for frame in frames)
 
 
-@pytest.mark.parametrize("path,status", [("/health", 200), ("/failure", 500)])
-def test_real_hio_wsgi_response_with_sentry(captured, path, status):
+@pytest.mark.parametrize("trace_rate", [None, "0", "1"])
+@pytest.mark.parametrize("path,status", [("/health", 200), ("/failure", 500), ("/rejected", 400)])
+def test_real_hio_wsgi_response_with_sentry(transport_events, monkeypatch, path, status, trace_rate):
     from hio.core.http.serving import Responder
     from hio.help import Hict
     from sally.core import httping, monitoring
-    sdk, events = captured
+    sdk, events, transport = transport_events
+    if trace_rate is not None:
+        monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", trace_rate)
 
     class Failure:
         def on_get(self, req, resp):
             raise ValueError("Controlled HTTP failure")
 
-    app = falcon.App()
-    app.add_route("/health", monitoring.HealthEnd())
-    app.add_route("/failure", Failure())
-    server = httping.WsgiServer(app=app, port=9723)
-    request = SimpleNamespace(body=b"", method="GET", path=path, query="", version=(1, 1),
-                              headers=Hict(), length=0, remoter=SimpleNamespace(ca=("127.0.0.1", 12345)))
-    chunks = []
-    response = Responder(incomer=SimpleNamespace(tx=chunks.append), app=app,
-                         environ=server.buildEnviron(request), chunkable=True)
-    for _ in range(10):
-        response.service()
-        if response.ended or response.closed:
-            break
+    class Rejected:
+        def on_get(self, req, resp):
+            raise falcon.HTTPBadRequest(title="Controlled request rejection")
+
+    with reporting.session():
+        app = falcon.App()
+        app.add_route("/health", monitoring.HealthEnd())
+        app.add_route("/failure", Failure())
+        app.add_route("/rejected", Rejected())
+        server = httping.WsgiServer(app=app, port=9723)
+        request = SimpleNamespace(body=b"", method="GET", path=path, query="", version=(1, 1),
+                                  headers=Hict(), length=0, remoter=SimpleNamespace(ca=("127.0.0.1", 12345)))
+        chunks = []
+        response = Responder(incomer=SimpleNamespace(tx=chunks.append), app=app,
+                             environ=server.buildEnviron(request), chunkable=True)
+        for _ in range(10):
+            response.service()
+            if response.ended or response.closed:
+                break
     assert response.ended and not response.errored, repr(response.error)
     assert b"".join(chunks).startswith(f"HTTP/1.1 {status} ".encode())
     assert len(events) == (1 if status == 500 else 0)
+    assert len(transport.transactions) == (1 if trace_rate == "1" else 0)
+    if trace_rate == "1":
+        transaction = transport.transactions[0]
+        assert transaction["contexts"]["trace"]["op"] == "http.server"
+        assert transaction["transaction"] == path
+        assert transaction["request"]["method"] == "GET"
+        if events:
+            assert events[0]["contexts"]["trace"]["trace_id"] == transaction["contexts"]["trace"]["trace_id"]

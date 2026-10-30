@@ -14,6 +14,13 @@ def session():
     log_level = os.getenv("SALLY_SENTRY_LOG_LEVEL", "").upper()
     if log_level and log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
         raise ValueError(f"SALLY_SENTRY_LOG_LEVEL expects DEBUG, INFO, WARNING, ERROR, CRITICAL or empty, got {log_level!r}")
+    trace_rate = os.getenv("SENTRY_TRACES_SAMPLE_RATE")
+    try:
+        traces_sample_rate = float(trace_rate) if trace_rate is not None else None
+    except ValueError as error:
+        raise ValueError(f"SENTRY_TRACES_SAMPLE_RATE expects a number between 0 and 1, got {trace_rate!r}") from error
+    if traces_sample_rate is not None and not 0 <= traces_sample_rate <= 1:
+        raise ValueError(f"SENTRY_TRACES_SAMPLE_RATE expects a number between 0 and 1, got {trace_rate!r}")
     try:
         import sentry_sdk
     except ModuleNotFoundError as error:
@@ -33,6 +40,7 @@ def session():
         include_local_variables=False,
         in_app_include=["sally"],
         enable_logs=bool(log_level),
+        traces_sample_rate=traces_sample_rate,
     )
     try:
         yield

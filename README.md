@@ -12,6 +12,7 @@ The default installation does not include the SDK. Without a DSN, the SDK stays 
 Set `SENTRY_ENVIRONMENT` and `SENTRY_RELEASE` to identify the deployment.
 Error reports include preceding logging breadcrumbs, which can contain credential data from Sally's existing messages.
 Optionally set `SALLY_SENTRY_LOG_LEVEL=WARNING` to also forward Python logs at that level and above to searchable Sentry Logs.
+Set `SENTRY_TRACES_SAMPLE_RATE=0.1` to also trace a 10% sample of incoming HTTP requests; leave it unset to disable tracing.
 See [configuration, limits, and the local verification guide](docs/observability.md).
 
 # Usage
