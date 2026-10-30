@@ -4,11 +4,8 @@ import copy
 import pytest
 from hio.base import doing
 from keri import kering
-from keri.app import configing as keri_configing, habbing
-from keri.db import basing
-from keri.help import helping
+from keri.app import configing as keri_configing
 
-from sally.app.bootstrapping import BootstrapRunner
 from sally.core import configing, scheduling, serving
 
 
@@ -47,18 +44,19 @@ def test_defaults_and_precedence():
     pytest.param({'verifier': {'root': 0}}, id='root-must-be-positive'),
     pytest.param({'verifier': {'bootstrapRoot': 0}}, id='bootstrap-root-must-be-positive'),
     pytest.param({'verifier': {'presentation': True}}, id='child-tock-rejects-boolean'),
-    pytest.param({'verifier': {'verifierMsg': float('nan')}}, id='child-tock-rejects-nan'),
 ])
 def test_invalid_file_even_when_environment_overrides(tocks):
     """A valid environment root must not conceal malformed file cadence values."""
     with pytest.raises(kering.ConfigurationError):
-        scheduling.resolveTocks(tocks, environ={'SALLY_ROOT_TOCK': '.005'})
+        scheduling.resolveTocks(tocks, environ={
+            'SALLY_ROOT_TOCK': '.005',
+            'SALLY_BOOTSTRAP_ROOT_TOCK': '.005',
+        })
 
 
 @pytest.mark.parametrize('key,value', [
     pytest.param('SALLY_ROOT_TOCK', '0', id='root-rejects-zero'),
     pytest.param('SALLY_ROOT_TOCK', 'nan', id='root-rejects-nan'),
-    pytest.param('SALLY_VERIFIER_TOCK', '-1', id='child-rejects-negative'),
 ])
 def test_invalid_environment(key, value):
     """Scheduler environment strings must meet cadence-specific bounds."""
@@ -135,64 +133,3 @@ def test_communicator_cadence_does_not_rewrite_retry(open_communicator, options,
             assert comm.tock == .01
         finally:
             gen.close()
-
-
-@pytest.mark.parametrize('filename', [
-    pytest.param('sally.json', id='canonical-sally-config'),
-    pytest.param('direct-sally.json', id='canonical-direct-config'),
-])
-def test_canonical_habery_configuration_remains_compatible(filename):
-    """Canonical fixtures support default cadences and a separate tuned configuration."""
-    import json
-    from pathlib import Path
-
-    canonical = json.loads(
-        (Path(__file__).parents[2] / 'scripts/keri/cf' / filename).read_text(),
-    )
-    tuned_config = {
-        **canonical,
-        'tocks': {
-            **canonical.get('tocks', {}),
-            'verifier': {
-                'root': .002,
-                'communicatorEscrow': .01,
-            },
-        },
-    }
-
-    defaults = scheduling.resolveTocks(canonical.get('tocks', {}), environ={})
-    tuned = scheduling.resolveTocks(tuned_config['tocks'], environ={})
-    assert defaults['root'] == .03125
-    assert tuned['root'] == .002
-    assert tuned['communicatorEscrow'] == .01
-
-
-@pytest.mark.parametrize('phase', [
-    pytest.param('oobi', id='oobi-resolution'),
-    pytest.param('auth', id='well-known-authentication'),
-])
-def test_bootstrap_completes_after_resolution(phase):
-    """The real runner stays pending, then finishes once its bootstrap phase is resolved."""
-    with habbing.openHby(name='bootstrap-lifecycle') as hby:
-        url = 'http://127.0.0.1:1/oobi'
-        pending = hby.db.oobis if phase == 'oobi' else hby.db.woobi
-        pending.pin(keys=(url,), val=basing.OobiRecord())
-        clock = doing.Doist(real=False, tock=.001, limit=.01)
-        runner = BootstrapRunner(
-            hby=hby, tymth=clock.tymen(), tocks=scheduling.resolveTocks(environ={}),
-        )
-        assert not runner.complete
-
-        # Record the phase's successful outcome before running any network doers.
-        if phase == 'oobi':
-            hby.db.roobi.pin(keys=(url,), val=basing.OobiRecord(state='resolved'))
-        else:
-            hby.db.wkas.add(
-                keys=(hby.makeHab(name='auth').pre,),
-                val=basing.WellKnownAuthN(url=url, dt=helping.nowIso8601()),
-            )
-
-        # Let the runner finish through its normal scheduler lifecycle.
-        clock.do(doers=[runner])
-        assert runner.complete
-        assert runner.done

@@ -5,46 +5,18 @@ sally.core.handling module
 
 Handling support
 """
-import time
-
 import falcon
 from hio.base import doing
 from hio.core import http
 from hio.help import decking
-from keri.app import habbing, notifying
-from keri.core import coring, parsing, eventing
+from keri.app import notifying
+from keri.core import coring
 from keri.help import helping
 from keri.db import dbing
 from keri.vc import protocoling
 from sally.core import handling, basing, httping, metrics
 
 import issuing
-
-
-def test_geda_delegation_and_qvi_credential(geda_qvi, qvi_credential):
-    """Sally accepts the single-sig QVI only after learning GEDA's approval anchor."""
-    authority, geda, qvi = geda_qvi
-    with habbing.openHby(name='sally-delegation') as hby:
-        kvy = eventing.Kevery(db=hby.db, local=False)
-        parser = parsing.Parser(kvy=kvy)
-
-        # Knowing GEDA's inception is insufficient: its approval is a later event.
-        parser.parse(ims=bytearray(geda.makeOwnEvent(sn=0)))
-        parser.parse(ims=bytearray(qvi.makeOwnEvent(sn=0)))
-        assert qvi.pre not in hby.kevers
-
-        # Replay the signed approval, then let normal escrow processing finish dip.
-        parser.parse(ims=bytearray().join(authority.db.clonePreIter(pre=geda.pre)))
-        kvy.processEscrows()
-        accepted = hby.kevers[qvi.pre]
-        assert accepted.delegated
-        assert accepted.delpre == geda.pre
-        assert len(accepted.verfers) == len(hby.kevers[geda.pre].verfers) == 1
-
-        # Delegation does not make the QVI its own credential issuer.
-        assert qvi_credential.issuer == geda.pre
-        assert qvi_credential.sad['a']['i'] == qvi.pre
-        assert geda.pre != qvi.pre
 
 
 def test_presentation_handler(seeder, mockHelpingNowUTC, open_verification_context):

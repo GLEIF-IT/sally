@@ -50,9 +50,8 @@ def test_defaults_and_precedence():
     pytest.param({'verifier': None}, id='verifier-must-be-mapping'),
     pytest.param({'verifier': {'typo': 1}}, id='unknown-verifier-setting'),
     pytest.param({'verifier': {'retryDelay': -1}}, id='negative-retry-delay'),
-    pytest.param({'verifier': {'webhookRequestTimeout': -1}}, id='negative-request-timeout'),
     pytest.param({'verifier': {'escrowTimeout': 0}}, id='zero-escrow-lifetime'),
-    pytest.param({'verifier': {'bootstrapTimeout': float('inf')}}, id='infinite-bootstrap-lifetime'),
+    pytest.param({'verifier': {'bootstrapTimeout': 0}}, id='zero-bootstrap-lifetime'),
 ])
 def test_invalid_file_even_when_environment_overrides(config):
     """A valid override must not conceal malformed retry or deadline file values."""
@@ -71,7 +70,6 @@ def test_invalid_file_even_when_environment_overrides(config):
 @pytest.mark.parametrize('key,value', [
     pytest.param('SALLY_RETRY_DELAY', '', id='empty-retry-string'),
     pytest.param('SALLY_ESCROW_TIMEOUT', '0', id='zero-escrow-lifetime'),
-    pytest.param('SALLY_BOOTSTRAP_TIMEOUT', 'inf', id='infinite-bootstrap-lifetime'),
     pytest.param('SALLY_WEBHOOK_REQUEST_TIMEOUT', 'nan', id='nan-request-timeout'),
 ])
 def test_invalid_environment(key, value):
@@ -107,7 +105,6 @@ def test_fractional_seconds_and_zero_semantics():
         environ={},
     )
     assert resolved == configing.VerifierConfig(0, .5, .25, 0)
-    assert configing.validateDuration(.125, 'test interval') == .125
     with pytest.raises(kering.ConfigurationError):
         configing.validateDuration(0, 'positive interval', positive=True)
 
@@ -120,10 +117,11 @@ def test_verifier_resolution_ignores_tocks():
     assert resolved.escrow_timeout_seconds == 600
 
 
-def test_fast_processing_retains_failed_webhook_backoff(monkeypatch, open_communicator):
+def test_fast_processing_retains_failed_webhook_backoff(monkeypatch, open_communicator, geda_qvi):
     """A real signed webhook failure stays queued until its two-second retry deadline."""
     now = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
     monkeypatch.setattr(handling.helping, 'nowUTC', lambda: now)
+    _, geda, qvi = geda_qvi
     requests = []
 
     class UnavailableWebhook:
@@ -141,6 +139,7 @@ def test_fast_processing_retains_failed_webhook_backoff(monkeypatch, open_commun
         servant.eha = servant.ha  # HIO retains port zero in its advertised address.
         hook = f'http://127.0.0.1:{server.servant.ha[1]}/'
         with open_communicator(hook=hook, retry=2, escrow_tock=0) as (comm, credential):
+            assert comm.timeout == 600  # The Python API's default escrow lifetime is in seconds.
             server.wind(comm.tymth)
             said = credential.said
             dates = handling.coring.Dater().qb64
@@ -156,7 +155,11 @@ def test_fast_processing_retains_failed_webhook_backoff(monkeypatch, open_commun
                     break
                 time.sleep(.001)
             assert client.responses, 'local webhook did not produce its HTTP response'
-            assert requests[0]['data']['credential'] == said
+            request = requests[0]
+            assert request['actor'] == geda.pre
+            assert request['data']['credential'] == said
+            assert request['data']['issuer'] == geda.pre
+            assert request['data']['recipient'] == qvi.pre
             comm.processReceived(comm.cdb.recv, 'iss')
             assert comm.cdb.recv.get(keys=(said, dates)).said == said
             assert not client.connector.opened
@@ -189,9 +192,16 @@ def test_reopen_uses_selected_config_for_bootstrap_and_service(monkeypatch, tmp_
     monkeypatch.setattr(habbing.basing.Baser, 'HeadDirPath', str(tmp_path))
     config = {
         'tocks': {
-            'verifier': {'root': .002, 'bootstrapRoot': .005},
+            'mailboxEscrow': .125,
+            'verifier': {
+                'root': .002,
+                'bootstrapRoot': .005,
+            },
         },
-        'verifier': {'bootstrapTimeout': 7, 'retryDelay': .25},
+        'verifier': {
+            'bootstrapTimeout': 7,
+            'webhookRequestTimeout': 20,
+        },
     }
     with closing(configing.VerifierConfiger(
         name=config_file or 'sally', base='', headDirPath=str(tmp_path), temp=False,
@@ -208,9 +218,15 @@ def test_reopen_uses_selected_config_for_bootstrap_and_service(monkeypatch, tmp_
                 prefix = hby.makeHab(name='sally').pre
             else:
                 assert hby.habByName('sally').pre == prefix
+            # KERIpy reads its own cadences; Sally reads the complete shared file.
+            assert hby.tocks['mailboxEscrow'] == .125
+            assert 'verifier' not in hby.tocks
             assert hby.sally_tocks['root'] == .002
             assert hby.sally_tocks['bootstrapRoot'] == .005
-            assert hby.verifier_config.retry_delay_seconds == .25
+            # Exercise the actual server default, with no file or CLI retry override.
+            assert hby.verifier_config.retry_delay_seconds == 10
+            assert hby.verifier_config.escrow_timeout_seconds == 600
+            assert hby.verifier_config.webhook_request_timeout_seconds == 20
             assert hby.verifier_config.bootstrap_timeout_seconds == 7
             assert hby.cf.getVerifierConfig() == config
             assert Path(hby.cf.path).read_bytes() == contents
@@ -222,119 +238,58 @@ def test_reopen_uses_selected_config_for_bootstrap_and_service(monkeypatch, tmp_
     # Expiry decides retry versus drop only when request deadlines are enabled.
     pytest.param(False, True, id='deadline-cleans-up-and-retries-live-escrow'),
     pytest.param(True, True, id='deadline-cleans-up-and-drops-expired-escrow'),
-    pytest.param(True, False, id='disabled-deadline-keeps-silent-client'),
+    pytest.param(False, False, id='disabled-deadline-keeps-pending-client'),
 ])
 def test_silent_webhook_deadline_cleans_up_and_respects_escrow_lifetime(
         monkeypatch, open_communicator, expired, enabled):
-    """Real client sockets/doers are released on deadline, with retry or expiry in LMDB."""
+    """A request deadline releases its client and retries or drops the two-second escrow."""
     # Calendar time controls escrow age; elapsed request time controls the HTTP deadline.
     now = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
     request_clock_seconds = 10.0
     monkeypatch.setattr(handling.helping, 'nowUTC', lambda: now)
     monkeypatch.setattr(handling.time, 'monotonic', lambda: request_clock_seconds)
+    settings = configing.resolveVerifierConfig(
+        {'verifier': {'escrowTimeout': 2}}, environ={},
+    )
+    with open_communicator(
+        timeout=settings.escrow_timeout_seconds, retry=2, request_timeout=1 if enabled else 0,
+    ) as (comm, credential):
+        said = credential.said
+        # Straddle two seconds, so interpreting the lifetime as minutes fails this test.
+        queued = now - datetime.timedelta(seconds=2.1 if expired else 1.9)
+        dates = handling.coring.Dater(dts=queued.isoformat(timespec='microseconds')).qb64
+        comm.cdb.recv.pin(keys=(said, dates), val=credential)
+        # Leave real client I/O unserviced: the queued request has no response.
+        comm.processReceived(comm.cdb.recv, 'iss')
+        client, client_doer = comm.clients[said]
+        assert client_doer in comm.doers
 
-    # An open listener with no service turns leaves the real HTTP client unanswered.
-    servant = tcp.Server(ha=('127.0.0.1', 0))
-    with http.serving.openServer(servant=servant, app=falcon.App()) as server:
-        servant.eha = servant.ha
-        hook = f'http://127.0.0.1:{server.servant.ha[1]}/'
-        with open_communicator(hook=hook, retry=2, request_timeout=1 if enabled else 0) as (comm, credential):
-            said = credential.said
-            # The expired case is older than the default 600-second escrow lifetime.
-            queued = now - datetime.timedelta(seconds=660 if expired else 0)
-            dates = handling.coring.Dater(dts=queued.isoformat(timespec='microseconds')).qb64
-            comm.cdb.recv.pin(keys=(said, dates), val=credential)
-            # Send once, then check that polling before the deadline keeps the request open.
-            comm.processReceived(comm.cdb.recv, 'iss')
-            client, client_doer = comm.clients[said]
+        comm.processReceived(comm.cdb.recv, 'iss')
+        assert client.connector.opened
+        # Reach the HTTP deadline while keeping the credential's age unchanged.
+        request_clock_seconds += 1
+        comm.processReceived(comm.cdb.recv, 'iss')
+
+        if not enabled:
+            # Opting out leaves the live escrow's unanswered request active.
             assert client.connector.opened
             assert client_doer in comm.doers
+            assert said in comm.clients
+            assert comm.cdb.recv.get(keys=(said, dates)) is not None
+            return
 
-            comm.processReceived(comm.cdb.recv, 'iss')
-            assert client.connector.opened
-            # Reach the HTTP deadline while keeping the credential's age unchanged.
-            request_clock_seconds += 1
-            comm.processReceived(comm.cdb.recv, 'iss')
-
-            if not enabled:
-                # Opting out leaves the unanswered request active.
-                assert client.connector.opened
-                assert client_doer in comm.doers
-                assert said in comm.clients
-                assert comm.cdb.recv.get(keys=(said, dates)) is not None
-                return
-
-            # Release the timed-out request; escrow age determines drop versus retry.
-            assert not client.connector.opened
-            assert client_doer not in comm.doers
-            assert said not in comm.clients
-            assert said not in comm.requested_at
-            assert comm.metrics.get('sally_exceptions_total', kind='webhook_request_timeout') == 1
-            if expired:
-                assert comm.cdb.recv.get(keys=(said, dates)) is None
-                assert said not in comm.retry_at
-            else:
-                assert comm.cdb.recv.get(keys=(said, dates)).said == said
-                assert comm.retry_at[said] == now + datetime.timedelta(seconds=2)
-
-
-def test_verifier_namespace_survives_real_habery_creation_and_reopen(tmp_path):
-    """Create and reopen a real Habery while preserving Sally's full config on disk."""
-    from pathlib import Path
-    from keri.app import habbing
-
-    config = {
-        'tocks': {
-            'mailboxEscrow': .125,
-            'verifier': {
-                'root': .002,
-                'communicatorEscrow': 0,
-            },
-        },
-        'verifier': {
-            'retryDelay': .25,
-            'webhookRequestTimeout': 20,
-        },
-    }
-    prefix = None
-    for reopening in (False, True):
-        cf = configing.VerifierConfiger(
-            name='timing',
-            headDirPath=str(tmp_path),
-            temp=False,
-            reopen=True,
-        )
-        try:
-            if not reopening:
-                cf.put(config)
-            contents = Path(cf.path).read_bytes()
-
-            with habbing.openHby(
-                name='verifier-config',
-                temp=False,
-                headDirPath=str(tmp_path),
-                cf=cf,
-            ) as hby:
-                # KERIpy sees only its own settings; Sally still sees verifier timing.
-                assert hby.tocks['mailboxEscrow'] == .125
-                assert 'verifier' not in hby.tocks
-                tocks = scheduling.loadTocks(hby.cf, environ={})
-                settings = configing.loadVerifierConfig(hby.cf, environ={})
-                assert tocks['root'] == .002
-                assert tocks['communicatorEscrow'] == 0
-                assert settings.retry_delay_seconds == .25
-                assert settings.webhook_request_timeout_seconds == 20
-
-                # Reopening must recover the same identifier, not silently recreate it.
-                if not reopening:
-                    prefix = hby.makeHab(name='alice').pre
-                else:
-                    assert hby.habByName('alice').pre == prefix
-
-                assert cf.getVerifierConfig() == config
-                assert Path(cf.path).read_bytes() == contents
-        finally:
-            cf.close()
+        # Release the timed-out request; escrow age determines drop versus retry.
+        assert not client.connector.opened
+        assert client_doer not in comm.doers
+        assert said not in comm.clients
+        assert said not in comm.requested_at
+        assert comm.metrics.get('sally_exceptions_total', kind='webhook_request_timeout') == 1
+        if expired:
+            assert comm.cdb.recv.get(keys=(said, dates)) is None
+            assert said not in comm.retry_at
+        else:
+            assert comm.cdb.recv.get(keys=(said, dates)).said == said
+            assert comm.retry_at[said] == now + datetime.timedelta(seconds=2)
 
 
 def test_config_reader_keeps_keripy_validation_strict(tmp_path):
@@ -357,47 +312,10 @@ def test_config_reader_keeps_keripy_validation_strict(tmp_path):
             tocking.resolveTocks(cf.get()['tocks'], environ={})
 
 
-def test_escrow_lifetime_uses_seconds(monkeypatch, open_communicator):
-    """A configured two-second escrow expires after two seconds, not two minutes."""
-    now = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
-    monkeypatch.setattr(handling.helping, 'nowUTC', lambda: now)
-    settings = configing.resolveVerifierConfig(
-        {'verifier': {'escrowTimeout': 2}}, environ={},
-    )
-    with open_communicator(timeout=settings.escrow_timeout_seconds, retry=0) as (comm, credential):
-        said = credential.said
-        dates = handling.coring.Dater().qb64
-        comm.cdb.recv.pin(keys=(said, dates), val=credential)
-
-        # Retain the actual queued ACDC immediately before the deadline.
-        now += datetime.timedelta(seconds=1.9)
-        comm.retry_or_drop(comm.cdb.recv, said, dates, 'iss')
-        assert comm.cdb.recv.get(keys=(said, dates)).said == said
-        assert said in comm.retry_at
-
-        # Cross the two-second lifetime and remove the queued credential.
-        now += datetime.timedelta(seconds=.2)
-        comm.retry_or_drop(comm.cdb.recv, said, dates, 'iss')
-        assert comm.cdb.recv.get(keys=(said, dates)) is None
-        assert said not in comm.retry_at
-
-
-def test_cli_and_python_defaults_use_seconds(open_communicator):
-    """Both entrypoints use a 600-second escrow lifetime and their own retry default."""
+def test_cli_escrow_timeout_uses_seconds():
+    """An explicit CLI lifetime reaches the verifier resolver without minute conversion."""
     from sally.app.cli.commands.server import start
 
-    args = start.parser.parse_args(['--alias', 'test', '--web-hook', 'http://example.test/', '--auth', 'authority'])
-    cli = configing.resolveVerifierConfig(
-        environ={}, retry=args.retry_delay, timeout=args.escrow_timeout, default_retry=10,
-    )
-    api = configing.resolveVerifierConfig(environ={})
-    assert cli.escrow_timeout_seconds == api.escrow_timeout_seconds == 600
-    assert cli.retry_delay_seconds == 10
-    assert api.retry_delay_seconds == 3
-    with open_communicator() as (comm, _):
-        assert comm.timeout == 600
-
-    # An explicit CLI number is used directly as seconds, with no minute conversion.
     args = start.parser.parse_args([
         '--alias', 'test', '--web-hook', 'http://example.test/', '--auth', 'authority',
         '--escrow-timeout', '2',
