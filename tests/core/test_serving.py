@@ -10,10 +10,10 @@ import os
 from hio.base import doing
 from hio.help import decking
 from keri.app import habbing
-from keri.core import coring, parsing, eventing
+from keri.core import coring
+from keri.db import dbing
 from keri.help import helping
 from keri.vdr import eventing as veventing, viring
-from keri.vdr import verifying
 
 import issuing
 from sally.core import basing, handling, credentials
@@ -21,15 +21,14 @@ from sally.core import basing, handling, credentials
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def test_tevery_cuery(seeder, mockHelpingNowUTC):
+def test_tevery_cuery(seeder, mockHelpingNowUTC, open_verification_context):
+    """A revocation cue for a verified LE credential enters the communication escrow."""
     qvi = "EOwXzTKWgsmCDVJwMS4VUJWX-m-oKx9d8VDyaRNY6mMZ"
 
-    with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
-        cdb = basing.CueBaser(name="test_cb", temp=True)
-        reger = viring.Reger(temp=True)
-        kvy = eventing.Kevery(db=hby.db)
-        tvy = veventing.Tevery(db=hby.db, reger=reger)
-        vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
+    with (open_verification_context(name="test", base="test", expiry=10_000_000) as context,
+          dbing.openLMDB(cls=basing.CueBaser, name="test_cb", temp=True) as cdb):
+        hby, reger = context.hby, context.reger
+        kvy, tvy, vry = context.kvy, context.tvy, context.verifier
 
         seeder.load_schema(hby.db)
 
@@ -38,7 +37,7 @@ def test_tevery_cuery(seeder, mockHelpingNowUTC):
         issr.issue_legal_entity_vlei(seeder)
 
         ims = issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid)
-        parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
+        context.parser.parse(ims=ims)
 
         while not tvy.reger.saved.get(keys=(issr.lesaid,)):
             kvy.processEscrows()

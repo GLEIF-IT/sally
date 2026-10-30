@@ -12,24 +12,52 @@ from hio.base import doing
 from hio.core import http
 from hio.help import decking
 from keri.app import habbing, notifying
-from keri.core import coring, parsing, eventing, signing
+from keri.core import coring, parsing, eventing
 from keri.help import helping
-from keri.peer import exchanging
+from keri.db import dbing
 from keri.vc import protocoling
-from keri.vdr import eventing as veventing, viring
-from keri.vdr import verifying
 from sally.core import handling, basing, httping, metrics
 
 import issuing
 
 
-def test_presentation_handler(seeder, mockHelpingNowUTC):
-    salt = signing.Salter(raw=b'abcdef0123456789').qb64
-    with habbing.openHby(name="test", base="test", salt=salt) as hby:
-        cdb = basing.CueBaser(name="test_cb", temp=True)
-        exc = exchanging.Exchanger(hby=hby, handlers=[])
-        notifier = notifying.Notifier(hby=hby)
-        protocoling.loadHandlers(hby=hby, exc=exc, notifier=notifier)
+def test_geda_delegation_and_qvi_credential(geda_qvi, qvi_credential):
+    """Sally accepts the single-sig QVI only after learning GEDA's approval anchor."""
+    authority, geda, qvi = geda_qvi
+    with habbing.openHby(name='sally-delegation') as hby:
+        kvy = eventing.Kevery(db=hby.db, local=False)
+        parser = parsing.Parser(kvy=kvy)
+
+        # Knowing GEDA's inception is insufficient: its approval is a later event.
+        parser.parse(ims=bytearray(geda.makeOwnEvent(sn=0)))
+        parser.parse(ims=bytearray(qvi.makeOwnEvent(sn=0)))
+        assert qvi.pre not in hby.kevers
+
+        # Replay the signed approval, then let normal escrow processing finish dip.
+        parser.parse(ims=bytearray().join(authority.db.clonePreIter(pre=geda.pre)))
+        kvy.processEscrows()
+        accepted = hby.kevers[qvi.pre]
+        assert accepted.delegated
+        assert accepted.delpre == geda.pre
+        assert len(accepted.verfers) == len(hby.kevers[geda.pre].verfers) == 1
+
+        # Delegation does not make the QVI its own credential issuer.
+        assert qvi_credential.issuer == geda.pre
+        assert qvi_credential.sad['a']['i'] == qvi.pre
+        assert geda.pre != qvi.pre
+
+
+def test_presentation_handler(seeder, mockHelpingNowUTC, open_verification_context):
+    """An IPEX grant reaches the presentation escrow through the real parser and handlers."""
+    with (open_verification_context(
+            name="test", base="test", salt=b'abcdef0123456789', expiry=10_000_000,
+          ) as context,
+          dbing.openLMDB(cls=basing.CueBaser, name="test_cb", temp=True) as cdb,
+          dbing.openLMDB(cls=notifying.Noter, name="test", temp=True) as noter):
+        hby, parser = context.hby, context.parser
+        # This test owns the IPEX notification and presentation handlers.
+        notifier = notifying.Notifier(hby=hby, noter=noter)
+        protocoling.loadHandlers(hby=hby, exc=context.exc, notifier=notifier)
 
         seeder.load_schema(hby.db)
         # Load file containing entire chain for issued and valid Legal Entity credential
@@ -38,13 +66,6 @@ def test_presentation_handler(seeder, mockHelpingNowUTC):
 
         grant, atc = issr.grant_legal_entity_vlei()
         print(grant.pretty())
-
-        # create parser
-        reger = viring.Reger(temp=True)
-        kvy = eventing.Kevery(db=hby.db)
-        tvy = veventing.Tevery(db=hby.db, reger=reger)
-        vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
-        parser = parsing.Parser(kvy=kvy, tvy=tvy, vry=vry, exc=exc)
 
         doers = handling.loadHandlers(
             cdb=cdb,
@@ -81,17 +102,16 @@ def test_presentation_handler(seeder, mockHelpingNowUTC):
         assert dater.datetime == helping.fromIso8601("2021-01-01T00:00:00.000000+00:00")
 
 
-def test_communicator(seeder, mockHelpingNowUTC):
+def test_communicator(seeder, mockHelpingNowUTC, open_verification_context):
+    """Verified LE/OOR presentations produce signed webhooks with their expected payloads."""
     url = "http://localhost:5999/"
     salt = b'abcdef0123456789'
     root = "EID5n0m83IVIra_VZhSpov4RG7D9gxBnZeNPTlJK40TM"
 
-    with habbing.openHab(name="test", base="test", salt=salt, temp=True) as (hby, hab):
-        cdb = basing.CueBaser(name="test_cb", temp=True)
-        reger = viring.Reger(temp=True)
-        kvy = eventing.Kevery(db=hby.db)
-        tvy = veventing.Tevery(db=hby.db, reger=reger)
-        vry = verifying.Verifier(hby=hby, reger=tvy.reger, expiry=10000000)
+    with (open_verification_context(name="test", base="test", salt=salt, expiry=10_000_000) as context,
+          dbing.openLMDB(cls=basing.CueBaser, name="test_cb", temp=True) as cdb):
+        hby, hab = context.hby, context.hab
+        kvy, tvy, vry = context.kvy, context.tvy, context.verifier
         msgs = decking.Deck()
         httpDoer = launch_mock_server(msgs=msgs)
         m = metrics.Metrics()
@@ -105,7 +125,7 @@ def test_communicator(seeder, mockHelpingNowUTC):
         issr.issue_legal_entity_vlei(seeder)
 
         ims = issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid)
-        parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
+        context.parser.parse(ims=ims)
 
         while not tvy.reger.saved.get(keys=(issr.lesaid,)):
             kvy.processEscrows()
@@ -159,7 +179,7 @@ def test_communicator(seeder, mockHelpingNowUTC):
                                  'type': 'LE'}}
 
         ims = issuing.share_credential(issr.qviHab, issr.qviRgy, issr.oorsaid)
-        parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
+        context.parser.parse(ims=ims)
 
         while not tvy.reger.saved.get(keys=(issr.oorsaid,)):
             kvy.processEscrows()

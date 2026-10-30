@@ -7,34 +7,33 @@ import json
 import pytest
 from keri import kering
 from keri.app import habbing
-from keri.core import coring, parsing, eventing
-from keri.vdr import eventing as veventing, viring, verifying
+from keri.core import coring
+from keri.db import dbing
+from keri.vdr import eventing as veventing, viring
 
 import issuing
 from sally.core import basing, handling, inspecting
 
 
-def load_credential(hby, reger, ims):
-    kvy = eventing.Kevery(db=hby.db)
-    tvy = veventing.Tevery(db=hby.db, reger=reger)
-    vry = verifying.Verifier(hby=hby, reger=reger, expiry=10000000)
-    parsing.Parser().parse(ims=ims, kvy=kvy, tvy=tvy, vry=vry)
+def load_credential(context, ims):
+    """Feed one credential/TEL stream through the existing context and its escrow processors."""
+    context.parser.parse(ims=ims)
     for _ in range(50):
-        kvy.processEscrows()
-        tvy.processEscrows()
-        vry.processEscrows()
-    return kvy, tvy, vry
+        context.kvy.processEscrows()
+        context.tvy.processEscrows()
+        context.verifier.processEscrows()
 
 
-def test_collect_and_export_round_trip(seeder, mockHelpingNowUTC):
-    with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
-        cdb = basing.CueBaser(name="test_cb", temp=True)
-        reger = viring.Reger(name="test", db=hby.db, temp=True)
+def test_collect_and_export_round_trip(seeder, mockHelpingNowUTC, open_verification_context):
+    """Export verified credentials and recover them in an independent destination context."""
+    with (open_verification_context(name="test", base="test", expiry=10_000_000) as context,
+          dbing.openLMDB(cls=basing.CueBaser, name="test_cb", temp=True) as cdb):
+        hby, hab, reger = context.hby, context.hab, context.reger
         seeder.load_schema(hby.db)
 
         issr = issuing.CredentialIssuer()
         issr.issue_legal_entity_vlei(seeder)
-        load_credential(hby, reger, issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid))
+        load_credential(context, issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid))
         assert reger.saved.get(keys=(issr.lesaid,)) is not None
 
         report = inspecting.collect(hby.db, reger, cdb)
@@ -70,10 +69,10 @@ def test_collect_and_export_round_trip(seeder, mockHelpingNowUTC):
         stream = inspecting.exportCredentials(hby.db, reger)
         assert stream.count(issr.lesaid.encode()) > 0
 
-        with habbing.openHab(name="other", base="other", temp=True) as (ohby, ohab):
-            oreger = viring.Reger(name="other", db=ohby.db, temp=True)
+        with open_verification_context(name="other", base="other", expiry=10_000_000) as destination:
+            ohby, oreger = destination.hby, destination.reger
             seeder.load_schema(ohby.db)
-            load_credential(ohby, oreger, stream)
+            load_credential(destination, stream)
 
             assert oreger.saved.get(keys=(issr.lesaid,)) is not None
             assert oreger.saved.get(keys=(qvisaid,)) is not None
@@ -114,11 +113,11 @@ def test_collect_unknown_registry_and_out_of_order(seeder, mockHelpingNowUTC):
         assert rec["verified"] is False
 
 
-def test_collect_tel_only(seeder, mockHelpingNowUTC):
+def test_collect_tel_only(seeder, mockHelpingNowUTC, open_verification_context):
     """TEL events (issuer KEL, registry, iss) that arrive without the ACDC show up as TEL only."""
-    with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
-        cdb = basing.CueBaser(name="test_cb", temp=True)
-        reger = viring.Reger(name="test", db=hby.db, temp=True)
+    with (open_verification_context(name="test", base="test", expiry=10_000_000) as context,
+          dbing.openLMDB(cls=basing.CueBaser, name="test_cb", temp=True) as cdb):
+        hby, reger = context.hby, context.reger
         seeder.load_schema(hby.db)
 
         issr = issuing.CredentialIssuer()
@@ -132,7 +131,7 @@ def test_collect_tel_only(seeder, mockHelpingNowUTC):
             ims.extend(msg)
         for msg in issr.leeRgy.reger.clonePreIter(pre=creder.said):
             ims.extend(msg)
-        load_credential(hby, reger, bytes(ims))
+        load_credential(context, bytes(ims))
 
         report = inspecting.collect(hby.db, reger, cdb)
         assert report["credentials"] == []
@@ -142,7 +141,7 @@ def test_collect_tel_only(seeder, mockHelpingNowUTC):
         assert "TEL only, no ACDC (1)" in inspecting.formatReport(report)
 
         # Once the ACDC itself arrives the credential moves out of TEL only.
-        load_credential(hby, reger, issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid))
+        load_credential(context, issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid))
         report = inspecting.collect(hby.db, reger, cdb)
         assert report["telOnly"] == []
         assert issr.lesaid in {c["said"] for c in report["credentials"]}

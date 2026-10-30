@@ -7,6 +7,7 @@ import pytest
 from falcon import testing
 from keri.app import habbing
 from keri.core import coring
+from keri.db import dbing
 from keri.vdr import viring
 
 import issuing
@@ -154,15 +155,16 @@ def test_metrics_endpoint_snapshot_cache(monkeypatch):
         assert len(calls) == 2  # ttl expired, refreshed
 
 
-def test_metrics_endpoint_credentials(seeder, mockHelpingNowUTC):
-    with habbing.openHab(name="test", base="test", temp=True) as (hby, hab):
-        cdb = basing.CueBaser(name="test_cb", temp=True)
-        reger = viring.Reger(name="test", db=hby.db, temp=True)
+def test_metrics_endpoint_credentials(seeder, mockHelpingNowUTC, open_verification_context):
+    """Verified LE/QVI credentials appear in the real endpoint's metrics snapshot."""
+    with (open_verification_context(name="test", base="test", expiry=10_000_000) as context,
+          dbing.openLMDB(cls=basing.CueBaser, name="test_cb", temp=True) as cdb):
+        hby, reger = context.hby, context.reger
         seeder.load_schema(hby.db)
 
         issr = issuing.CredentialIssuer()
         issr.issue_legal_entity_vlei(seeder)
-        load_credential(hby, reger, issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid))
+        load_credential(context, issuing.share_credential(issr.leeHab, issr.leeRgy, issr.lesaid))
         assert reger.saved.get(keys=(issr.lesaid,)) is not None
 
         client = make_client(metrics.Metrics(), hby, reger, cdb, ttl=0)
