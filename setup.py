@@ -39,7 +39,7 @@ else:
 
 setup(
     name='sally',
-    version='1.0.9',  # also change in src/sally/__init__.py
+    version='1.0.10',  # also change in src/sally/__init__.py
     license='Apache-2.0',
     license_files=('LICENSE',),
     description='vLEI Audit Reporting API',
@@ -79,11 +79,11 @@ setup(
     ],
     python_requires='>=3.12.3',
     install_requires=[
-        'gleif_keri==1.2.17',
-        'gleif_hio==0.6.21',
+        'gleif_keri==1.2.18',
+        'gleif_hio==0.6.22',
         'multicommand>=1.0.0',
-        'blake3==0.4.1',
-        'falcon==4.0.2',
+        'blake3>=0.4.1',
+        'falcon>=4.0.2,<5.0.0',
         'http_sfv==0.9.9'
     ],
     extras_require={
