@@ -10,6 +10,17 @@ and untagged package versions are identified explicitly. The current GLEIF-IT
 remote is authoritative for release tags: its `0.6.0` points to the March 2024
 IPEX release, while some older clones retain a different local tag of that name.
 
+## [1.0.11] — 2026-10-30
+
+- Configure coroutine cadences under `tocks.verifier` independently of retry
+  delays and timeouts under `verifier`. Child cadences default to zero; the
+  positive root cadence controls the scheduler pace.
+- Express verifier intervals in seconds, including the 600-second escrow
+  lifetime. Support configurable bootstrap and webhook request deadlines while
+  retaining failed-webhook retry backoff.
+- Adopt `gleif_keri==1.2.19` for witness query cleanup and bounded TCP retention,
+  preserving `gleif_hio==0.6.22` and the existing security baseline.
+
 ## [1.0.10] — 2026-10-29
 
 - Upgrade to `gleif_keri==1.2.18` and `gleif_hio==0.6.22`, carrying the
@@ -276,6 +287,7 @@ No existing tag is rewritten by this changelog.
 - [Historical PyPI distribution: sally-verifier](https://pypi.org/project/sally-verifier/#history)
 - [Docker Hub image history](https://hub.docker.com/r/gleif/sally/tags)
 
+[1.0.11]: https://github.com/GLEIF-IT/sally/compare/1.0.10...1.0.11
 [1.0.10]: https://github.com/GLEIF-IT/sally/compare/1.0.9...1.0.10
 [1.0.9]: https://github.com/GLEIF-IT/sally/compare/1.0.8...1.0.9
 [1.0.8]: https://github.com/GLEIF-IT/sally/compare/1.0.7...1.0.8
