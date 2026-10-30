@@ -25,7 +25,7 @@ from keri.vdr.eventing import Tevery
 from keri.vc import protocoling
 
 from sally import ogler, log_name
-from sally.core import handling, basing, monitoring, httping, metrics as metricsmod
+from sally.core import handling, basing, monitoring, httping, metrics as metricsmod, scheduling, configing
 from sally.core.credentials import TeveryCuery
 from sally.core.verifying import VerificationAgent
 
@@ -53,16 +53,17 @@ def incept_if_new(hby: Habery, alias: str, incept_args: dict):
         logger.info(f"Hab '{alias}' already exists, using...")
     return hab
 
-def run_doers(doers: List[Doer], expire=0.0):
+def run_doers(doers: List[Doer], expire=0.0, *, tock=None):
     """Runs the verifier in a Doist until the specified expire time (in seconds)."""
-    tock = 0.03125
+    tock = scheduling.resolveTocks()["root"] if tock is None else configing.validateDuration(tock, "root tock", positive=True)
     doist = doing.Doist(limit=expire, tock=tock, real=True)
     doist.do(doers=doers)
 
 
 def setupDoers(
         hby: Habery, hab: Hab, alias: str, http_port: int, hook: str, auth: str,
-        timeout: int = 10, retry: int = 3, direct: bool = True, incept_args: dict = None):
+        timeout: float = None, retry: float = None, direct: bool = True,
+        incept_args: dict = None, tocks=None, verifier_config=None):
     """
     Parameters:
         hby (Habery): identifier database environment
@@ -70,21 +71,26 @@ def setupDoers(
         httpPort (int): external port to listen on for HTTP messages
         hook (str): URL of external web hook to notify of credential issuance and revocations
         auth (str): alias or AID of external authority for contacts and credentials
-        timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
-        retry (int): retry delay (in seconds) for failed web hook attempts
+        timeout (float): escrow timeout (in seconds) for events not delivered to upstream web hook
+        retry (float): retry delay (in seconds) for failed web hook attempts
         direct (bool): listen for direct-mode messages on HTTP port or use indirect-mode mailbox
         incept_args (dict): arguments for incepting Sally's identifier if it does not exist
+        tocks (dict): already resolved coroutine cadences in seconds
+        verifier_config (VerifierConfig): already resolved retry/deadline settings in seconds
     """
+    tocks = scheduling.loadTocks(hby.cf) if tocks is None else tocks
+    if verifier_config is None:
+        verifier_config = configing.loadVerifierConfig(hby.cf, retry=retry, timeout=timeout)
     hbyDoer = habbing.HaberyDoer(habery=hby)
     obl = oobiing.Oobiery(hby=hby)
 
     doers = [hbyDoer, *obl.doers]
     doers += setup(hby, hab, alias=alias, httpPort=http_port, hook=hook, auth=auth, timeout=timeout,
-                   retry=retry, direct=direct)
+                   retry=retry, direct=direct, tocks=tocks, verifier_config=verifier_config)
     return doers
 
-def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str, timeout=10,
-          retry=3, direct=True):
+def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str, timeout=None,
+          retry=None, direct=True, tocks=None, verifier_config=None):
     """
     Setup components, HTTP endpoints, and MailboxDirector working with witnesses to receive events.
 
@@ -94,10 +100,15 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
         httpPort (int): external port to listen on for HTTP messages
         hook (str): URL of external web hook to notify of credential issuance and revocations
         auth (str): alias or AID of external authority for contacts and credentials
-        timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
-        retry (int): retry delay (in seconds) for failed web hook attempts
+        timeout (float): escrow timeout (in seconds) for events not delivered to upstream web hook
+        retry (float): retry delay (in seconds) for failed web hook attempts
         direct (bool): listen for direct-mode messages on HTTP port or use indirect-mode mailbox
+        tocks (dict): already resolved coroutine cadences in seconds
+        verifier_config (VerifierConfig): already resolved retry/deadline settings in seconds
     """
+    tocks = scheduling.loadTocks(hby.cf) if tocks is None else tocks
+    if verifier_config is None:
+        verifier_config = configing.loadVerifierConfig(hby.cf, retry=retry, timeout=timeout)
     cues = decking.Deck()
     if hab is None:
         raise ValueError(f"Identifier with alias '{alias}' does not exist. It must be created before starting Sally.")
@@ -110,7 +121,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
     app = falcon.App(middleware=httping.cors_middleware())
     metrics = metricsmod.Metrics()
     server = http.Server(port=httpPort, app=app)
-    httpServerDoer = http.ServerDoer(server=server)
+    httpServerDoer = http.ServerDoer(server=server, tock=tocks["httpServer"])
 
     # KEL, ACDC, exchange message, and reply message components
     reger = viring.Reger(name=hab.name, db=hab.db, temp=False)
@@ -133,7 +144,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
 
     tvy = Tevery(reger=verifier.reger, db=hby.db, local=False)
     tvy.registerReplyRoutes(router=rvy.rtr)
-    tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues, metrics=metrics)
+    tc = TeveryCuery(cdb=cdb, reger=reger, cues=tvy.cues, metrics=metrics, tock=tocks["revocation"])
 
     parser = parsing.Parser(
         framed=True,
@@ -144,8 +155,16 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
         exc=exc,
     )
 
-    comms = handling.Communicator(hby=hby, hab=hab, cdb=cdb, reger=reger,
-                                  auth=auth, hook=hook, timeout=timeout, retry=retry, metrics=metrics)
+    comms = handling.Communicator(
+        hby=hby, hab=hab, cdb=cdb, reger=reger, auth=auth, hook=hook,
+        timeout=verifier_config.escrow_timeout_seconds,
+        retry=verifier_config.retry_delay_seconds,
+        metrics=metrics,
+        escrow_tock=tocks["communicatorEscrow"],
+        client_tock=tocks["webhookClient"],
+        tock=tocks["communicator"],
+        request_timeout=verifier_config.webhook_request_timeout_seconds,
+    )
     app.add_route("/health", monitoring.HealthEnd(cdb=cdb))
     app.add_route("/metrics", monitoring.MetricsEnd(metrics=metrics, db=hby.db, reger=reger, cdb=cdb))
 
@@ -162,13 +181,16 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
                 notifier=notifier,
                 parser=parser,
                 metrics=metrics,
+                tock=tocks["presentation"],
             )
         )
 
         # Set up HTTP endpoint for PUT-ing application/cesr streams to the SallyAgent at '/'
         httpEnd = indirecting.HttpEnd(rxbs=parser.ims, mbx=mbx)
         app.add_route('/', httpEnd)
-        agent = VerificationAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, exc=exc, cues=cues)
+        agent = VerificationAgent(hab=hab, parser=parser, kvy=kvy, tvy=tvy, rvy=rvy, verifier=verifier, exc=exc, cues=cues,
+                                  tock=tocks["verifier"], msg_tock=tocks["verifierMsg"],
+                                  escrow_tock=tocks["verifierEscrow"])
         doers.append(agent)
     else:
         logger.info("Adding indirect mode mailbox listener")
@@ -183,6 +205,7 @@ def setup(hby: Habery, hab: Hab, alias: str, httpPort: int, hook: str, auth: str
                 notifier=notifier,
                 parser=mbd.parser,
                 metrics=metrics,
+                tock=tocks["presentation"],
             )
         )
         doers.append(mbd)

@@ -13,7 +13,7 @@ class VerificationAgent(doing.DoDoer):
     Indirect mode is used when presenting to the reporting agent via a mailbox whether from a witness or a mailbox agent.
     """
 
-    def __init__(self, hab, parser, kvy, tvy, rvy, verifier, exc, cues=None, **opts):
+    def __init__(self, hab, parser, kvy, tvy, rvy, verifier, exc, cues=None, msg_tock=0.0, escrow_tock=0.0, **opts):
         """
         Initializes the ReportingAgent with an identifier (Hab), parser, KEL, TEL, and Exchange message processor
         so that it can process incoming credential presentations.
@@ -36,7 +36,7 @@ class VerificationAgent(doing.DoDoer):
         self.verifier = verifier
         self.exc = exc
         self.cues = cues if cues is not None else decking.Deck()
-        doers = [doing.doify(self.msgDo), doing.doify(self.escrowDo)]
+        doers = [doing.doify(self.msgDo, tock=msg_tock), doing.doify(self.escrowDo, tock=escrow_tock)]
         super().__init__(doers=doers, **opts)
 
     def msgDo(self, tymth=None, tock=0.0, temp=None, **opts):
@@ -45,13 +45,12 @@ class VerificationAgent(doing.DoDoer):
         message processor to process credential presentations.
         """
         self.wind(tymth)
-        self.tock = tock
-        _ = (yield self.tock)
+        _ = (yield tock)
 
         if self.parser.ims:
             logger.debug(f"ReportingAgent received:\n%s\n...\n", self.parser.ims[:1024])
-        done = yield from self.parser.parsator(local=True)
-        return done
+        for delay in self.parser.parsator(local=True):
+            yield tock if delay is None else delay
 
     def escrowDo(self, tymth=None, tock=0.0, temp=None, **opts):
         """
@@ -59,8 +58,7 @@ class VerificationAgent(doing.DoDoer):
         This ensures that each component processes the messages parsed from the HttpEnd.
         """
         self.wind(tymth)
-        self.tock = tock
-        _ = (yield self.tock)
+        _ = (yield tock)
 
         while True:
             self.kvy.processEscrows()
@@ -71,4 +69,4 @@ class VerificationAgent(doing.DoDoer):
                 self.verifier.processEscrows()
             self.exc.processEscrow()
 
-            yield
+            yield tock

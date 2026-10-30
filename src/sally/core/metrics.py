@@ -31,6 +31,7 @@ REVOCATION_UNKNOWN_REGISTRY = "revocation_unknown_registry"
 REVOCATION_UNKNOWN_CREDENTIAL = "revocation_unknown_credential"
 WEBHOOK_PAYLOAD_INVALID_SCHEMA = "webhook_payload_invalid_schema"
 WEBHOOK_DROPPED = "webhook_dropped"
+WEBHOOK_REQUEST_TIMEOUT = "webhook_request_timeout"
 ESCROW_LOOP_ERROR = "escrow_loop_error"
 NOTICE_IGNORED = "notice_ignored"
 
@@ -49,6 +50,7 @@ EXCEPTION_KINDS = (
     REVOCATION_UNKNOWN_CREDENTIAL,
     WEBHOOK_PAYLOAD_INVALID_SCHEMA,
     WEBHOOK_DROPPED,
+    WEBHOOK_REQUEST_TIMEOUT,
     ESCROW_LOOP_ERROR,
     NOTICE_IGNORED,
 )

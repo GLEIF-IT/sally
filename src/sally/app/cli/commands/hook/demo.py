@@ -10,10 +10,9 @@ import pprint
 import falcon
 from hio.core import http
 from keri import help
-from keri.app import directing
 
 from sally import log_name, ogler
-from sally.core import handling, httping
+from sally.core import handling, httping, scheduling, serving
 from sally.core.monitoring import HealthEnd
 
 logger = ogler.getLogger(log_name)
@@ -42,10 +41,10 @@ def launch(args, expire=0.0):
     app.add_route("/health", HealthEnd())
 
     server = http.Server(port=httpPort, app=app)
-    httpServerDoer = http.ServerDoer(server=server)
+    httpServerDoer = http.ServerDoer(server=server, tock=scheduling.resolveTocks()["httpServer"])
 
     logger.info(f"Sally Web Hook Sample listening on {httpPort}")
-    directing.runController(doers=[httpServerDoer], expire=expire)
+    serving.run_doers(doers=[httpServerDoer], expire=expire)
 
 
 class WebhookListener:

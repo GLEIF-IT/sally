@@ -7,6 +7,7 @@ EXN Message handling
 """
 import datetime
 import json
+import time
 from base64 import urlsafe_b64encode as encodeB64
 from typing import List
 from urllib import parse
@@ -21,7 +22,7 @@ from keri.end import ending
 from keri.help import helping
 
 from sally import ogler, log_name
-from sally.core import httping, metrics as metricsmod
+from sally.core import httping, configing, metrics as metricsmod
 
 logger = ogler.getLogger(log_name)
 
@@ -40,7 +41,7 @@ type_to_name = {
 }
 
 
-def loadHandlers(cdb, hby, notifier, parser, metrics=None) -> List[Doer]:
+def loadHandlers(cdb, hby, notifier, parser, metrics=None, tock=0.0) -> List[Doer]:
     """
     Returns an array of Doers that are handlers for the peer-to-peer exchange messages.
     Sally only uses the notification handler for ACDC presentations.
@@ -59,6 +60,7 @@ def loadHandlers(cdb, hby, notifier, parser, metrics=None) -> List[Doer]:
             notifier=notifier,
             parser=parser,
             metrics=metrics,
+            tock=tock,
         )
     ]
 
@@ -85,7 +87,7 @@ class PresentationProofHandler(doing.Doer):
         self.notifier = notifier
         self.parser = parser
         self.metrics = metrics if metrics is not None else metricsmod.Metrics()
-        super(PresentationProofHandler, self).__init__()
+        super(PresentationProofHandler, self).__init__(**kwa)
 
     def processNotes(self):
         """
@@ -198,7 +200,8 @@ class Communicator(doing.DoDoer):
     an HTTP API call to the configured webhook URL.
     """
 
-    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=10, retry=3.0, metrics=None):
+    def __init__(self, hby, hab, cdb, reger, auth, hook, timeout=600, retry=3.0, metrics=None,
+                 escrow_tock=0.0, client_tock=0.0, request_timeout=0.0, **kwa):
         """
         Create a communicator capable of persistent processing of messages and performing
         web hook calls.
@@ -210,9 +213,12 @@ class Communicator(doing.DoDoer):
             reger (Reger): credential registry and database
             auth (str): AID of external authority for contacts and credentials
             hook (str): web hook to call in response to presentations and revocations
-            timeout (int): escrow timeout (in minutes) for events not delivered to upstream web hook
+            timeout (float): escrow timeout (in seconds) for events not delivered to upstream web hook
             retry (float): retry delay (in seconds) for failed web hook attempts
             metrics (Metrics): shared metrics registry; a private one is used when omitted
+            escrow_tock (float): communicator cadence; zero runs on the next parent turn
+            client_tock (float): webhook HTTP client service cadence
+            request_timeout (float): HTTP attempt deadline in seconds; zero disables it
         """
         self.hby = hby
         self.hab = hab
@@ -222,10 +228,15 @@ class Communicator(doing.DoDoer):
         self.auth = auth
         self.timeout = timeout
         self.retry = retry
+        self.escrow_tock = configing.validateDuration(escrow_tock, "communicator escrow tock")
+        self.client_tock = client_tock
+        self.retry_at = {}
+        self.request_timeout = configing.validateDuration(request_timeout, "webhook request timeout")
+        self.requested_at = {}
         self.clients = dict()
         self.metrics = metrics if metrics is not None else metricsmod.Metrics()
 
-        super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)])
+        super(Communicator, self).__init__(doers=[doing.doify(self.escrowDo)], **kwa)
 
     def processPresentations(self):
         """
@@ -237,7 +248,7 @@ class Communicator(doing.DoDoer):
             # cancel presentations that have been around longer than timeout
             now = helping.nowUTC()
             logger.info(f"looking for credential {said}")
-            if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
+            if now - dater.datetime > datetime.timedelta(seconds=self.timeout):
                 logger.info(f"presentation {said} timed out")
                 self.metrics.inc("sally_exceptions_total", kind=metricsmod.PRESENTATION_TIMEOUT)
                 self.cdb.iss.rem(keys=(said,))
@@ -286,7 +297,7 @@ class Communicator(doing.DoDoer):
 
             # cancel revocations that have been around longer than timeout
             now = helping.nowUTC()
-            if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
+            if now - dater.datetime > datetime.timedelta(seconds=self.timeout):
                 logger.info(f"revocation {said} timed out")
                 self.metrics.inc("sally_exceptions_total", kind=metricsmod.REVOCATION_TIMEOUT)
                 self.cdb.rev.rem(keys=(said,))
@@ -323,6 +334,9 @@ class Communicator(doing.DoDoer):
 
         for (said, dates), creder in db.getItemIter():
             if said not in self.clients:
+                if said in self.retry_at and helping.nowUTC() < self.retry_at[said]:
+                    continue
+                self.retry_at.pop(said, None)
                 resource = creder.schema
                 actor = creder.issuer
                 if action == "iss":  # presentation of issued credential
@@ -352,6 +366,7 @@ class Communicator(doing.DoDoer):
                 self.remove([clientDoer])
                 client.close()
                 del self.clients[said]
+                self.requested_at.pop(said, None)
 
                 if 200 <= response["status"] < 300:
                     self.metrics.inc("sally_webhook_responses_total", action=action, outcome="success")
@@ -360,12 +375,27 @@ class Communicator(doing.DoDoer):
                 else:
                     self.metrics.inc("sally_webhook_responses_total", action=action, outcome="failure")
                     logger.error(f"webhook returned status {response['status']} for action {action} of {said}")
-                    dater = coring.Dater(qb64=dates)
-                    now = helping.nowUTC()
-                    if now - dater.datetime > datetime.timedelta(minutes=self.timeout):
-                        logger.error(f"dropping action {action} of {said}: webhook never acknowledged within timeout")
-                        self.metrics.inc("sally_exceptions_total", kind=metricsmod.WEBHOOK_DROPPED)
-                        db.rem(keys=(said, dates))
+                    self.retry_or_drop(db, said, dates, action)
+            elif (self.request_timeout and said in self.requested_at
+                  and time.monotonic() - self.requested_at[said] >= self.request_timeout):
+                self.remove([clientDoer])
+                client.close()
+                del self.clients[said]
+                self.requested_at.pop(said, None)
+                self.metrics.inc("sally_exceptions_total", kind=metricsmod.WEBHOOK_REQUEST_TIMEOUT)
+                logger.error(f"webhook request timed out for action {action} of {said}")
+                self.retry_or_drop(db, said, dates, action)
+
+    def retry_or_drop(self, db, said, dates, action):
+        """Keep retry backoff independent of the communicator processing cadence."""
+        now = helping.nowUTC()
+        if now - coring.Dater(qb64=dates).datetime > datetime.timedelta(seconds=self.timeout):
+            logger.error(f"dropping action {action} of {said}: webhook never acknowledged within timeout")
+            self.metrics.inc("sally_exceptions_total", kind=metricsmod.WEBHOOK_DROPPED)
+            db.rem(keys=(said, dates))
+            self.retry_at.pop(said, None)
+        else:
+            self.retry_at[said] = now + datetime.timedelta(seconds=self.retry)
 
     def processAcks(self):
         """Once a webhook request is acknowledged then remove it from the ack queue."""
@@ -374,7 +404,7 @@ class Communicator(doing.DoDoer):
             logger.info(f"ACK for credential {said} will be sent to {creder.issuer}")
             self.cdb.ack.rem(keys=(said,))
 
-    def escrowDo(self, tymth, tock=1.0, temp=None, **opts):
+    def escrowDo(self, tymth, tock=0.0, temp=None, **opts):
         """ Process escrows of comms pipeline
 
         Steps involve:
@@ -388,15 +418,14 @@ class Communicator(doing.DoDoer):
         Parameters:
             tymth (function): injected function wrapper closure returned by .tymen() of
                 Tymist instance. Calling tymth() returns associated Tymist .tyme.
-            tock (float): injected initial tock value.  Default to 1.0 to slow down processing
+            tock (float): injected initial tock value.  Zero schedules the next parent turn
             temp (bool | None): injected temporary-resource mode
             **opts (dict): additional scheduler options
 
         """
         # enter context
         self.wind(tymth)
-        self.tock = tock
-        _ = (yield self.tock)
+        _ = (yield tock)
 
         while True:
             try:
@@ -405,7 +434,7 @@ class Communicator(doing.DoDoer):
                 self.metrics.inc("sally_exceptions_total", kind=metricsmod.ESCROW_LOOP_ERROR)
                 logger.error(e)
 
-            yield self.retry
+            yield self.escrow_tock
 
     def processEscrows(self):
         """
@@ -432,7 +461,7 @@ class Communicator(doing.DoDoer):
         """
         purl = parse.urlparse(self.hook)
         client = http.clienting.Client(hostname=purl.hostname, port=purl.port)
-        clientDoer = http.clienting.ClientDoer(client=client)
+        clientDoer = http.clienting.ClientDoer(client=client, tock=self.client_tock)
         self.extend([clientDoer])
 
         body = dict(
@@ -479,6 +508,7 @@ class Communicator(doing.DoDoer):
         )
 
         self.clients[said] = (client, clientDoer)
+        self.requested_at[said] = time.monotonic()
 
     def validateQualifiedvLEIIssuer(self, creder):
         """ Validate issuer of QVI against known valid issuer

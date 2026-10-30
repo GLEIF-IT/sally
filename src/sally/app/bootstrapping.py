@@ -4,20 +4,23 @@ from hio.base import doing
 from keri.app import habbing, oobiing
 
 from sally import ogler, log_name
+from sally.core import scheduling
 
 logger = ogler.getLogger(log_name)
 
 
 class BootstrapRunner(doing.DoDoer):
-    def __init__(self, hby: habbing.Habery, tymth: Callable):
+    def __init__(self, hby: habbing.Habery, tymth: Callable, tocks=None):
         """
         Parameters:
             hby (Habery): the hab in which to create the AID, if needed
             tymth (function): the clock time (scheduler tick rate) to use from the parent Doist
+            tocks (dict): already resolved coroutine cadences in seconds
         """
+        self.tocks = scheduling.loadTocks(hby.cf) if tocks is None else tocks
         self.hby = hby
         self.complete = False
-        super(BootstrapRunner, self).__init__(tymth=tymth)
+        super(BootstrapRunner, self).__init__(tymth=tymth, tock=self.tocks["bootstrap"])
         self.extend([OobiResolveBootstrapper(hby, self)])
 
     def recur(self, tyme, deeds=None):
@@ -47,7 +50,7 @@ class OobiResolveBootstrapper(doing.Doer):
             self.parent.extend(obi.doers)
 
             while oobi_count > self.hby.db.roobi.cntAll():
-                yield 0.25
+                yield self.parent.tocks["bootstrapOobi"]
 
             for (oobi,), obr in self.hby.db.roobi.getItemIter():
                 if obr.state in (oobiing.Result.resolved,):
@@ -71,7 +74,7 @@ class OobiResolveBootstrapper(doing.Doer):
                 if set(wc) & set(cap) == set(wc):
                     break
 
-                yield 0.5
+                yield self.parent.tocks["bootstrapAuth"]
 
             self.parent.remove(authn.doers)
 

@@ -1,0 +1,27 @@
+{
+  "tocks": {
+    "mailboxEscrow": 0.0,
+    "oobi": 0.0,
+    "verifier": {
+      "root": 0.002,
+      "bootstrapRoot": 0.002,
+      "bootstrapOobi": 0.0,
+      "bootstrapAuth": 0.0,
+      "httpServer": 0.0,
+      "communicator": 0.0,
+      "communicatorEscrow": 0.0,
+      "webhookClient": 0.0,
+      "presentation": 0.0,
+      "revocation": 0.0,
+      "verifier": 0.0,
+      "verifierMsg": 0.0,
+      "verifierEscrow": 0.0
+    }
+  },
+  "verifier": {
+    "retryDelay": 1.0,
+    "escrowTimeout": 600.0,
+    "bootstrapTimeout": 30.0,
+    "webhookRequestTimeout": 20.0
+  }
+}
