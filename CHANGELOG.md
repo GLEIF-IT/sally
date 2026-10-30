@@ -10,6 +10,18 @@ and untagged package versions are identified explicitly. The current GLEIF-IT
 remote is authoritative for release tags: its `0.6.0` points to the March 2024
 IPEX release, while some older clones retain a different local tag of that name.
 
+## [1.0.10] — 2026-10-29
+
+- Upgrade to `gleif_keri==1.2.18` and `gleif_hio==0.6.22`, carrying the
+  delegated-rotation replay correction, current Python dependency security
+  floors, and maintained HTTP connection cleanup into Sally.
+- Pin the matching multi-platform KERI image. Install Sally into the prepared
+  KERI virtual environment with `uv` during the builder stage because the
+  hardened KERI runtime no longer ships `pip` or `ensurepip`.
+- Accept the compatible Blake3 and Falcon versions already qualified in the
+  immutable KERI base, avoiding application-layer downgrades and duplicate
+  distribution metadata in the final image.
+
 ## [1.0.9] — 2026-10-29
 
 ### Added
@@ -264,6 +276,7 @@ No existing tag is rewritten by this changelog.
 - [Historical PyPI distribution: sally-verifier](https://pypi.org/project/sally-verifier/#history)
 - [Docker Hub image history](https://hub.docker.com/r/gleif/sally/tags)
 
+[1.0.10]: https://github.com/GLEIF-IT/sally/compare/1.0.9...1.0.10
 [1.0.9]: https://github.com/GLEIF-IT/sally/compare/1.0.8...1.0.9
 [1.0.8]: https://github.com/GLEIF-IT/sally/compare/1.0.7...1.0.8
 [1.0.7]: https://github.com/GLEIF-IT/sally/compare/1.0.6...1.0.7
