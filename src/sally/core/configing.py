@@ -7,6 +7,14 @@ from dataclasses import dataclass
 from keri import kering
 from keri.app import configing as keri_configing
 
+from sally import ogler, log_name
+
+logger = ogler.getLogger(log_name)
+
+# Escrow timeouts below this many seconds almost always mean a value written in minutes
+# for Sally 1.0.10 or earlier, where --escrow-timeout was a count of minutes.
+ESCROW_TIMEOUT_SUSPECT_SECONDS = 60.0
+
 
 def validateDuration(value, source, positive=False):
     """Return a finite duration in seconds; no unit conversion is performed.
@@ -51,18 +59,21 @@ def resolveVerifierConfig(config=None, *, environ=None, retry=None, timeout=None
         raise kering.ConfigurationError(f'Unknown verifier configuration keys: {sorted(unknown)}')
 
     values = {}
+    sources = {}
     for key, env, default, positive in (
             ('retryDelay', 'SALLY_RETRY_DELAY', default_retry, False),
             ('escrowTimeout', 'SALLY_ESCROW_TIMEOUT', 600.0, True),
             ('bootstrapTimeout', 'SALLY_BOOTSTRAP_TIMEOUT', 30.0, True),
             ('webhookRequestTimeout', 'SALLY_WEBHOOK_REQUEST_TIMEOUT', 0.0, False)):
         value = validateDuration(supplied.get(key, default), f'verifier.{key}', positive=positive)
+        sources[key] = f'verifier.{key} in the config file' if key in supplied else 'the default'
         if env in environ:
             try:
                 raw = environ[env]
                 if not isinstance(raw, str):
                     raise TypeError('Environment durations must be strings')
                 value = validateDuration(float(raw), env, positive=positive)
+                sources[key] = f'the {env} environment variable'
             except (ValueError, TypeError) as ex:
                 raise kering.ConfigurationError(f'Invalid {env}') from ex
         values[key] = value
@@ -71,12 +82,28 @@ def resolveVerifierConfig(config=None, *, environ=None, retry=None, timeout=None
         values['retryDelay'] = validateDuration(retry, '--retry-delay')
     if timeout is not None:
         values['escrowTimeout'] = validateDuration(timeout, '--escrow-timeout', positive=True)
+        sources['escrowTimeout'] = 'the --escrow-timeout argument'
+    warnIfEscrowTimeoutLooksLikeMinutes(values['escrowTimeout'], sources['escrowTimeout'])
     return VerifierConfig(
         retry_delay_seconds=values['retryDelay'],
         escrow_timeout_seconds=values['escrowTimeout'],
         bootstrap_timeout_seconds=values['bootstrapTimeout'],
         webhook_request_timeout_seconds=values['webhookRequestTimeout'],
     )
+
+
+def warnIfEscrowTimeoutLooksLikeMinutes(seconds, source):
+    """Warn when an escrow timeout is short enough to be a pre-1.0.11 value in minutes.
+
+    Sally 1.0.10 and earlier read --escrow-timeout as minutes; since 1.0.11 every duration
+    is in seconds. A deployment that still passes the old ``10`` now gets a ten-second escrow
+    and silently drops presentations, so say so at startup where it will be seen.
+    """
+    if seconds < ESCROW_TIMEOUT_SUSPECT_SECONDS:
+        logger.warning(
+            f"escrow timeout is {seconds:g} seconds, set by {source}. Since Sally 1.0.11 this value is in "
+            f"seconds, not minutes; a value under {ESCROW_TIMEOUT_SUSPECT_SECONDS:g} usually means a setting "
+            f"written for an earlier release. The former ten-minute default is 600.")
 
 
 class VerifierConfiger(keri_configing.Configer):

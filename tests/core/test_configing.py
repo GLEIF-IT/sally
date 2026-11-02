@@ -1,6 +1,7 @@
 """Verifier settings, units and config-reader behavior, independently of scheduling."""
 import copy
 import datetime
+import logging
 import time
 from contextlib import closing
 from pathlib import Path
@@ -310,6 +311,30 @@ def test_config_reader_keeps_keripy_validation_strict(tmp_path):
         })
         with pytest.raises(kering.ConfigurationError, match='misspelledKeriTock'):
             tocking.resolveTocks(cf.get()['tocks'], environ={})
+
+
+@pytest.mark.parametrize('kwargs, source', [
+    (dict(timeout=10), 'the --escrow-timeout argument'),
+    (dict(environ={'SALLY_ESCROW_TIMEOUT': '10'}), 'the SALLY_ESCROW_TIMEOUT environment variable'),
+    (dict(config={'verifier': {'escrowTimeout': 10}}), 'verifier.escrowTimeout in the config file'),
+])
+def test_short_escrow_timeout_warns_about_minutes(caplog, kwargs, source):
+    """A pre-1.0.11 deployment passing 10 (minutes) now gets 10 seconds; say so at startup."""
+    kwargs.setdefault('environ', {})
+    with caplog.at_level(logging.WARNING, logger='sally'):
+        resolved = configing.resolveVerifierConfig(**kwargs)
+    assert resolved.escrow_timeout_seconds == 10
+    warnings = [r for r in caplog.records if 'escrow timeout is 10 seconds' in r.getMessage()]
+    assert len(warnings) == 1
+    assert source in warnings[0].getMessage()
+    assert 'minutes' in warnings[0].getMessage() and '600' in warnings[0].getMessage()
+
+
+def test_escrow_timeout_of_a_minute_or_more_does_not_warn(caplog):
+    with caplog.at_level(logging.WARNING, logger='sally'):
+        configing.resolveVerifierConfig(environ={}, timeout=60)
+        configing.resolveVerifierConfig(environ={})
+    assert not [r for r in caplog.records if 'escrow timeout' in r.getMessage()]
 
 
 def test_cli_escrow_timeout_uses_seconds():

@@ -10,8 +10,19 @@ and untagged package versions are identified explicitly. The current GLEIF-IT
 remote is authoritative for release tags: its `0.6.0` points to the March 2024
 IPEX release, while some older clones retain a different local tag of that name.
 
+## [Unreleased]
+
+- Warn at startup when the escrow timeout is under 60 seconds, naming where the
+  value came from. A deployment still passing the pre-1.0.11 `--escrow-timeout 10`
+  (ten minutes) now gets ten seconds and would otherwise find out through dropped
+  presentations.
+
 ## [1.0.11] — 2026-10-30
 
+- **Breaking:** `--escrow-timeout`, the `SALLY_ESCROW_TIMEOUT` environment
+  variable, and the Python `timeout` argument are now seconds, not minutes.
+  Multiply existing values by 60; the former default of `10` becomes `600`, which
+  is also the new default when the flag is omitted.
 - Configure coroutine cadences under `tocks.verifier` independently of retry
   delays and timeouts under `verifier`. Child cadences default to zero; the
   positive root cadence controls the scheduler pace.
@@ -287,6 +298,7 @@ No existing tag is rewritten by this changelog.
 - [Historical PyPI distribution: sally-verifier](https://pypi.org/project/sally-verifier/#history)
 - [Docker Hub image history](https://hub.docker.com/r/gleif/sally/tags)
 
+[Unreleased]: https://github.com/GLEIF-IT/sally/compare/1.0.11...HEAD
 [1.0.11]: https://github.com/GLEIF-IT/sally/compare/1.0.10...1.0.11
 [1.0.10]: https://github.com/GLEIF-IT/sally/compare/1.0.9...1.0.10
 [1.0.9]: https://github.com/GLEIF-IT/sally/compare/1.0.8...1.0.9
