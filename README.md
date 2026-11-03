@@ -88,6 +88,8 @@ apply to `sally hook demo`.
 | `webhookRequestTimeout` | `SALLY_WEBHOOK_REQUEST_TIMEOUT` | none               | 0 (disabled)                              |
 
 All durations, including `--escrow-timeout` and the Python `timeout` argument, are in seconds.
+Before 1.0.11 `--escrow-timeout` was minutes; a value under 60 seconds is logged as a
+warning at startup because it usually means an unconverted setting from that era.
 Bootstrap and escrow timeouts must be positive. Retry delay and webhook request
 timeout accept zero. The CLI accepts fractional retry delays and escrow timeouts.
 
